@@ -1,0 +1,38 @@
+# CrewAI Development Dockerfile with hot reloading
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    build-essential \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+
+# Install Python dependencies with development tools
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir \
+    watchdog \
+    python-dotenv
+
+# Create necessary directories
+RUN mkdir -p /app/logs
+
+# Set environment variables for development
+ENV PYTHONPATH=/app
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV CREWAI_PIPELINE_HOST=0.0.0.0
+ENV CREWAI_PIPELINE_PORT=9091
+ENV DEBUG=true
+
+# Expose port
+EXPOSE 9091
+
+# Development command
+CMD ["python", "pipeline/server.py"]

@@ -1,0 +1,18 @@
+# OpenAPI Server Requirements for CrewAI-Myndy Integration
+
+# Core FastAPI and API dependencies
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# ASGI and middleware
+httpx>=0.24.0
+python-multipart>=0.0.6
+
+# Additional utilities
+python-dotenv>=1.0.0
+typing-extensions>=4.0.0
+
+# Inherit from main project
+-r ../requirements.txt

@@ -1,0 +1,26 @@
+{
+  "pipeline_id": "myndy_ai",
+  "timestamp": "2025-06-16T20:55:29.563032",
+  "values": {
+    "enable_intelligent_routing": true,
+    "enable_shadow_agent": true,
+    "default_agent": "personal_assistant",
+    "routing_confidence_threshold": 0.7,
+    "max_agent_iterations": 25,
+    "enable_tool_execution": true,
+    "enable_contact_management": true,
+    "tool_timeout": 30,
+    "enable_memory_search": true,
+    "memory_persistence": "automatic",
+    "myndy_api_url": "http://localhost:8000",
+    "enable_caching": true,
+    "max_concurrent_agents": 3,
+    "debug_mode": true,
+    "log_level": "INFO",
+    "log_agent_decisions": true,
+    "expose_logs_ui": true,
+    "log_retention_hours": 24,
+    "myndy_path": "/Users/jeremy/myndy-ai",
+    "custom_model_config": "Custom"
+  }
+}

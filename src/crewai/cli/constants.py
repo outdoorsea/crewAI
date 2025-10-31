@@ -1,4 +1,10 @@
 ENV_VARS = {
+    "ollama": [
+        {
+            "default": True,
+            "API_BASE": "http://localhost:11434",
+        }
+    ],
     "openai": [
         {
             "prompt": "Enter your OPENAI API key (press Enter to skip)",
@@ -42,12 +48,6 @@ ENV_VARS = {
             "prompt": "Enter your WATSONX Project Id (press Enter to skip)",
             "key_name": "WATSONX_PROJECT_ID",
         },
-    ],
-    "ollama": [
-        {
-            "default": True,
-            "API_BASE": "http://localhost:11434",
-        }
     ],
     "bedrock": [
         {
@@ -107,13 +107,13 @@ ENV_VARS = {
 
 
 PROVIDERS = [
+    "ollama",
     "openai",
     "anthropic",
     "gemini",
     "nvidia_nim",
     "groq",
     "huggingface",
-    "ollama",
     "watson",
     "bedrock",
     "azure",
@@ -229,7 +229,21 @@ MODELS = {
         "groq/gemma2-9b-it",
         "groq/gemma-7b-it",
     ],
-    "ollama": ["ollama/llama3.1", "ollama/mixtral"],
+    "ollama": [
+        "ollama/llama3.2",
+        "ollama/llama3.1", 
+        "ollama/llama3.1:8b",
+        "ollama/llama3.1:70b",
+        "ollama/qwen2.5",
+        "ollama/qwen2.5:7b",
+        "ollama/qwen2.5:14b",
+        "ollama/qwen2.5:32b",
+        "ollama/mistral",
+        "ollama/mixtral",
+        "ollama/codellama",
+        "ollama/deepseek-coder",
+        "ollama/phi3"
+    ],
     "watson": [
         "watsonx/meta-llama/llama-3-1-70b-instruct",
         "watsonx/meta-llama/llama-3-1-8b-instruct",
@@ -316,7 +330,7 @@ MODELS = {
     ],
 }
 
-DEFAULT_LLM_MODEL = "gpt-4o-mini"
+DEFAULT_LLM_MODEL = "ollama/llama3.2"
 
 JSON_URL = "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
 

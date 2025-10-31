@@ -8,9 +8,9 @@ from chromadb.api.types import validate_embedding_function
 class EmbeddingConfigurator:
     def __init__(self):
         self.embedding_functions = {
+            "ollama": self._configure_ollama,
             "openai": self._configure_openai,
             "azure": self._configure_azure,
-            "ollama": self._configure_ollama,
             "vertexai": self._configure_vertexai,
             "google": self._configure_google,
             "cohere": self._configure_cohere,
@@ -47,12 +47,13 @@ class EmbeddingConfigurator:
 
     @staticmethod
     def _create_default_embedding_function():
-        from chromadb.utils.embedding_functions.openai_embedding_function import (
-            OpenAIEmbeddingFunction,
+        from chromadb.utils.embedding_functions.ollama_embedding_function import (
+            OllamaEmbeddingFunction,
         )
 
-        return OpenAIEmbeddingFunction(
-            api_key=os.getenv("OPENAI_API_KEY"), model_name="text-embedding-3-small"
+        return OllamaEmbeddingFunction(
+            url="http://localhost:11434/api/embeddings", 
+            model_name="nomic-embed-text"
         )
 
     @staticmethod

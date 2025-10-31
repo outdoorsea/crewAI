@@ -23,6 +23,9 @@ from dotenv import load_dotenv
 from litellm.types.utils import ChatCompletionDeltaToolCall
 from pydantic import BaseModel, Field
 
+# Configure logger
+logger = logging.getLogger(__name__)
+
 from crewai.utilities.events.llm_events import (
     LLMCallCompletedEvent,
     LLMCallFailedEvent,
@@ -83,6 +86,17 @@ class FilteredStream(io.TextIOBase):
 
 
 LLM_CONTEXT_WINDOW_SIZES = {
+    # ollama models
+    "ollama/llama3.2": 131072,
+    "ollama/llama3.1": 131072,
+    "ollama/llama3": 8192,
+    "ollama/qwen2.5": 32768,
+    "ollama/gemma2": 8192,
+    "ollama/mistral": 32768,
+    "ollama/phi3": 4096,
+    "ollama/mixtral": 32768,
+    "ollama/codellama": 16384,
+    "ollama/deepseek-coder": 16384,
     # openai
     "gpt-4": 8192,
     "gpt-4o": 128000,
@@ -297,9 +311,20 @@ class LLM(BaseLLM):
         self.reasoning_effort = reasoning_effort
         self.additional_params = kwargs
         self.is_anthropic = self._is_anthropic_model(model)
+        self.is_ollama = self._is_ollama_model(model)
         self.stream = stream
 
         litellm.drop_params = True
+        
+        # Configure LiteLLM for Ollama models
+        if self.is_ollama:
+            # Ensure proper Ollama configuration for LiteLLM
+            if not self.base_url and not self.api_base:
+                self.base_url = "http://localhost:11434"
+            logger.debug(f"Configured Ollama model: {model} with base_url: {self.base_url}")
+        
+        # Add explicit logging for model configuration
+        logger.debug(f"LLM initialized: model={model}, provider={self._get_custom_llm_provider()}, is_ollama={self.is_ollama}")
 
         # Normalize self.stop to always be a List[str]
         if stop is None:
@@ -323,6 +348,17 @@ class LLM(BaseLLM):
         """
         ANTHROPIC_PREFIXES = ("anthropic/", "claude-", "claude/")
         return any(prefix in model.lower() for prefix in ANTHROPIC_PREFIXES)
+    
+    def _is_ollama_model(self, model: str) -> bool:
+        """Determine if the model is from Ollama provider.
+
+        Args:
+            model: The model identifier string.
+
+        Returns:
+            bool: True if the model is from Ollama, False otherwise.
+        """
+        return model.lower().startswith("ollama/")
 
     def _prepare_completion_params(
         self,
@@ -371,6 +407,18 @@ class LLM(BaseLLM):
             "reasoning_effort": self.reasoning_effort,
             **self.additional_params,
         }
+        
+        # Ensure Ollama models have proper configuration
+        if self.is_ollama:
+            # Ensure base_url is set for Ollama
+            if not params["base_url"] and not params["api_base"]:
+                params["base_url"] = "http://localhost:11434"
+            # Remove parameters that Ollama doesn't support
+            ollama_incompatible_params = ["reasoning_effort", "logprobs", "top_logprobs", "logit_bias"]
+            for param in ollama_incompatible_params:
+                if param in params and params[param] is not None:
+                    logger.debug(f"Removing Ollama-incompatible parameter: {param}")
+                    params[param] = None
 
         # Remove None values from params
         return {k: v for k, v in params.items() if v is not None}
@@ -732,10 +780,14 @@ class LLM(BaseLLM):
             # for consistent handling in the rest of the codebase
             raise LLMContextLengthExceededException(str(e))
 
-        # --- 2) Extract response message and content
-        response_message = cast(Choices, cast(ModelResponse, response).choices)[
-            0
-        ].message
+        # --- 2) Extract response message and content with error handling
+        # Check if response has choices before accessing index 0
+        response_choices = cast(ModelResponse, response).choices
+        if not response_choices or len(response_choices) == 0:
+            logger.error("Empty response from LLM - no choices returned")
+            raise Exception("LLM returned empty response - no choices available. This may indicate an issue with the Ollama model or connection.")
+        
+        response_message = cast(Choices, response_choices[0]).message
         text_response = response_message.content or ""
 
         # --- 3) Handle callbacks with usage info
@@ -865,6 +917,20 @@ class LLM(BaseLLM):
         # --- 3) Convert string messages to proper format if needed
         if isinstance(messages, str):
             messages = [{"role": "user", "content": messages}]
+        
+        # --- 3.1) Validate messages array before proceeding
+        if not messages or len(messages) == 0:
+            logger.error("Empty messages array passed to LLM call")
+            raise ValueError("Messages array cannot be empty - at least one message is required")
+        
+        # Validate each message has required structure
+        for i, msg in enumerate(messages):
+            if not isinstance(msg, dict):
+                logger.error(f"Message at index {i} is not a dictionary: {type(msg)}")
+                raise ValueError(f"Message at index {i} must be a dictionary with 'role' and 'content' keys")
+            if 'role' not in msg or 'content' not in msg:
+                logger.error(f"Message at index {i} missing required keys: {msg}")
+                raise ValueError(f"Message at index {i} must have 'role' and 'content' keys")
 
         # --- 4) Handle O1 model special case (system messages not supported)
         if "o1" in self.model.lower():
@@ -936,12 +1002,18 @@ class LLM(BaseLLM):
         """
         if messages is None:
             raise TypeError("Messages cannot be None")
+        
+        # Validate messages array is not empty
+        if len(messages) == 0:
+            logger.error("Empty messages array passed to _format_messages_for_provider")
+            raise ValueError("Messages array cannot be empty - at least one message is required for LLM processing")
 
         # Validate message format first
-        for msg in messages:
+        for i, msg in enumerate(messages):
             if not isinstance(msg, dict) or "role" not in msg or "content" not in msg:
+                logger.error(f"Invalid message at index {i}: {msg}")
                 raise TypeError(
-                    "Invalid message format. Each message must be a dict with 'role' and 'content' keys"
+                    f"Invalid message format at index {i}. Each message must be a dict with 'role' and 'content' keys"
                 )
 
         # Handle O1 models specially

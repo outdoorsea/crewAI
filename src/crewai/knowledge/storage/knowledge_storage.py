@@ -181,12 +181,13 @@ class KnowledgeStorage(BaseKnowledgeStorage):
             raise
 
     def _create_default_embedding_function(self):
-        from chromadb.utils.embedding_functions.openai_embedding_function import (
-            OpenAIEmbeddingFunction,
+        from chromadb.utils.embedding_functions.ollama_embedding_function import (
+            OllamaEmbeddingFunction,
         )
 
-        return OpenAIEmbeddingFunction(
-            api_key=os.getenv("OPENAI_API_KEY"), model_name="text-embedding-3-small"
+        return OllamaEmbeddingFunction(
+            url="http://localhost:11434/api/embeddings", 
+            model_name="nomic-embed-text"
         )
 
     def _set_embedder_config(self, embedder: Optional[Dict[str, Any]] = None) -> None:

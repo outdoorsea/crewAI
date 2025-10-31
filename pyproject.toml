@@ -1,11 +1,11 @@
 [project]
-name = "crewai"
-version = "0.121.0"
-description = "Cutting-edge framework for orchestrating role-playing, autonomous AI agents. By fostering collaborative intelligence, CrewAI empowers agents to work together seamlessly, tackling complex tasks."
+name = "myndy-crewai"
+version = "0.1.0"
+description = "Myndy-Core CrewAI Integration: Specialized agents with intelligent routing, memory integration, and 530+ tool access via HTTP bridge to myndy-ai backend"
 readme = "README.md"
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.10,<3.14"
 authors = [
-    { name = "Joao Moura", email = "joao@crewai.com" }
+    { name = "Jeremy", email = "jeremy@myndy.ai" }
 ]
 dependencies = [
     # Core Dependencies
@@ -37,12 +37,17 @@ dependencies = [
     "tomli>=2.0.2",
     "blinker>=1.9.0",
     "json5>=0.10.0",
+    "sentence-transformers>=4.1.0",
+    "qdrant-client>=1.12.0",
+    "fastapi>=0.115.3",
+    "langchain-community>=0.3.3",
+    "langchain>=0.3.4",
 ]
 
 [project.urls]
-Homepage = "https://crewai.com"
-Documentation = "https://docs.crewai.com"
-Repository = "https://github.com/crewAIInc/crewAI"
+Homepage = "https://github.com/outdoorsea/myndy-core"
+Documentation = "https://github.com/outdoorsea/myndy-core/tree/main/crewAI/docs"
+Repository = "https://github.com/outdoorsea/myndy-core"
 
 [project.optional-dependencies]
 tools = ["crewai-tools~=0.45.0"]
@@ -90,7 +95,7 @@ dev-dependencies = [
 ]
 
 [project.scripts]
-crewai = "crewai.cli.cli:crewai"
+myndy-crewai = "myndy_crewai.pipeline.server:main"
 
 [tool.mypy]
 ignore_missing_imports = true
@@ -98,7 +103,7 @@ disable_error_code = 'import-untyped'
 exclude = ["cli/templates"]
 
 [tool.bandit]
-exclude_dirs = ["src/crewai/cli/templates"]
+exclude_dirs = ["src/crewai/cli/templates", "src/myndy_crewai/cli/templates"]
 
 [build-system]
 requires = ["hatchling"]

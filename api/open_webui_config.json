@@ -1,0 +1,79 @@
+{
+  "name": "CrewAI-Myndy Integration API",
+  "description": "Multi-agent AI system with 31+ tools for personal productivity, research, health analysis, and financial tracking",
+  "version": "1.0.0",
+  "openapi_url": "http://localhost:8000/openapi.json",
+  "base_url": "http://localhost:8000",
+  "endpoints": {
+    "chat": "/agents/{agent_role}/chat",
+    "completions": "/chat/completions",
+    "models": "/models"
+  },
+  "authentication": {
+    "type": "none",
+    "required": false
+  },
+  "capabilities": {
+    "agents": [
+      {
+        "id": "memory_librarian",
+        "name": "Memory Librarian",
+        "description": "Organizes and retrieves personal knowledge, entities, and conversation history",
+        "model": "llama3",
+        "tools": ["memory_search", "entity_query", "conversation_history"]
+      },
+      {
+        "id": "research_specialist", 
+        "name": "Research Specialist",
+        "description": "Conducts research, gathers information, and verifies facts",
+        "model": "mixtral",
+        "tools": ["web_search", "document_analysis", "fact_verification"]
+      },
+      {
+        "id": "personal_assistant",
+        "name": "Personal Assistant", 
+        "description": "Manages calendar, email, contacts, and personal productivity",
+        "model": "gemma",
+        "tools": ["calendar_tools", "email_tools", "contact_tools"]
+      },
+      {
+        "id": "health_analyst",
+        "name": "Health Analyst",
+        "description": "Analyzes health data and provides wellness insights",
+        "model": "phi", 
+        "tools": ["health_data", "fitness_tracking", "wellness_analysis"]
+      },
+      {
+        "id": "finance_tracker",
+        "name": "Finance Tracker",
+        "description": "Tracks expenses, analyzes spending, and provides financial insights",
+        "model": "mistral",
+        "tools": ["expense_tracking", "budget_analysis", "financial_reports"]
+      }
+    ],
+    "tools": {
+      "total": 31,
+      "categories": ["memory", "research", "productivity", "health", "finance"],
+      "features": ["natural_language_queries", "data_analysis", "automation"]
+    },
+    "workflows": {
+      "life_analysis": "Comprehensive analysis of personal life across all domains",
+      "research_project": "Deep research with fact verification and source analysis", 
+      "health_optimization": "Data-driven health and fitness improvement plans",
+      "financial_planning": "Budget analysis and financial goal planning"
+    }
+  },
+  "integration": {
+    "type": "openapi",
+    "format": "json",
+    "streaming": false,
+    "async_tasks": true
+  },
+  "configuration": {
+    "default_agent": "memory_librarian",
+    "response_format": "markdown",
+    "memory_enabled": true,
+    "tools_enabled": true,
+    "multi_agent": true
+  }
+}

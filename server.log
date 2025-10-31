@@ -1,0 +1,74 @@
+/Users/jeremy/myndy-core/venv/lib/python3.13/site-packages/langchain_openai/chat_models/__init__.py:1: LangChainDeprecationWarning: As of langchain-core 0.3.0, LangChain uses pydantic v2 internally. The langchain_core.pydantic_v1 module was a compatibility shim for pydantic v1, and should no longer be used. Please update the code to import from Pydantic directly.
+
+For example, replace imports like: `from langchain_core.pydantic_v1 import BaseModel`
+with: `from pydantic import BaseModel`
+or the v1 compatibility namespace if you are working in a code base that has not been fully upgraded to pydantic 2 yet. 	from pydantic.v1 import BaseModel
+
+  from langchain_openai.chat_models.azure import AzureChatOpenAI
+/Users/jeremy/myndy-core/venv/lib/python3.13/site-packages/pydantic/_internal/_config.py:373: UserWarning: Valid config keys have changed in V2:
+* 'allow_population_by_field_name' has been renamed to 'validate_by_name'
+  warnings.warn(message, UserWarning)
+/Users/jeremy/myndy-core/venv/lib/python3.13/site-packages/pydantic/_internal/_config.py:373: UserWarning: Valid config keys have changed in V2:
+* 'allow_population_by_field_name' has been renamed to 'validate_by_name'
+  warnings.warn(message, UserWarning)
+2025-06-13 13:33:23,218 - tools.myndy_bridge - INFO - HTTP-based tool bridge initialized with architecture compliance
+2025-06-13 13:33:23,220 - crewai.pipeline - INFO - ✅ Enhanced Shadow Agent imported successfully
+2025-06-13 13:33:23,230 - tools.myndy_bridge - INFO - Loaded 1 HTTP-based tools for agent role: personal_assistant
+2025-06-13 13:33:23,230 - config.llm_config - INFO - Using Ollama from package: langchain_community
+/Users/jeremy/myndy-core/crewAI/config/llm_config.py:132: LangChainDeprecationWarning: The class `ChatOllama` was deprecated in LangChain 0.3.1 and will be removed in 1.0.0. An updated version of the class exists in the :class:`~langchain-ollama package and should be used instead. To use it run `pip install -U :class:`~langchain-ollama` and import as `from :class:`~langchain_ollama import ChatOllama``.
+  llm = ChatOllama(**default_params)
+2025-06-13 13:33:23,237 - config.llm_config - INFO - Created ChatOllama LLM with model: llama3.2:latest (using langchain_community)
+/Users/jeremy/myndy-core/venv/lib/python3.13/site-packages/crewai/agent.py:223: LangChainDeprecationWarning: Please see the migration guide at: https://python.langchain.com/docs/versions/migrating_memory/
+  summary_memory = ConversationSummaryMemory(
+2025-06-13 13:33:23,238 - tools.myndy_bridge - INFO - Loaded 2 HTTP-based tools for agent role: shadow_agent
+2025-06-13 13:33:23,240 - config.llm_config - INFO - Created ChatOllama LLM with model: mixtral:latest (using langchain_community)
+2025-06-13 13:33:23,240 - crewai.pipeline - INFO - CrewAI agents and crews imported successfully
+2025-06-13 13:33:23,240 - tools.myndy_bridge - INFO - Loaded 2 HTTP-based tools for agent role: shadow_agent
+2025-06-13 13:33:23,240 - tools.myndy_bridge - INFO - Loaded 0 HTTP-based tools for agent role: memory_librarian
+2025-06-13 13:33:23,243 - config.llm_config - INFO - Created ChatOllama LLM with model: mixtral:latest (using langchain_community)
+2025-06-13 13:33:23,243 - crewai.pipeline - INFO - 🔮 Enhanced Shadow Agent initialized for behavioral observation
+2025-06-13 13:33:23,243 - crewai.pipeline - INFO - ✅ Loaded tool-specific prompt engineering guide
+2025-06-13 13:33:23,243 - crewai.pipeline - INFO - ✅ Loaded API endpoints reference guide
+2025-06-13 13:33:23,244 - crewai.pipeline - INFO - ✅ Loaded enhanced agents summary guide
+2025-06-13 13:33:23,244 - crewai.pipeline - INFO - ✅ Loaded general prompt engineering guide
+2025-06-13 13:33:23,244 - crewai.pipeline - INFO - 📚 Loaded 4 prompt engineering guides
+2025-06-13 13:33:23,244 - crewai.pipeline - INFO - 🎉 Myndy AI v0.1.0 - Personal Intelligence Pipeline initialized
+2025-06-13 13:33:23,244 - crewai.pipeline - INFO - 📊 Available agents: ['personal_assistant', 'shadow_agent']
+2025-06-13 13:33:23,244 - crewai.pipeline - INFO - 🔧 CrewAI available: True
+2025-06-13 13:33:23,244 - crewai.pipeline - INFO - 🤖 CrewAI agents loaded: ['personal_assistant', 'shadow_agent']
+2025-06-13 13:33:23,244 - crewai.pipeline - INFO - ✅ Simplified to 2 agents: Personal Assistant + Shadow Agent
+2025-06-13 13:33:23,244 - crewai.valve_manager - INFO - Valve configuration loaded from /Users/jeremy/myndy-core/crewAI/pipeline/myndy_ai_valves.json
+2025-06-13 13:33:23,244 - crewai.valve_manager - INFO - 🔧 Enhanced Valve Manager initialized for pipeline: myndy_ai
+2025-06-13 13:33:23,246 - __main__ - INFO - Starting Enhanced CrewAI-Myndy Pipeline Server v2.0
+2025-06-13 13:33:23,246 - __main__ - INFO - 🚀 Features: Intelligent Agent Routing + Enhanced Valve Management + Memory Search
+2025-06-13 13:33:23,246 - __main__ - INFO - 🤖 Available agents: 2 specialized agents + auto-routing
+2025-06-13 13:33:23,246 - __main__ - INFO - 🔧 Valve management: 20 configurable valves in 7 categories
+2025-06-13 13:33:23,246 - __main__ - INFO - ✅ Enabled features: enable_intelligent_routing, enable_shadow_agent, enable_tool_execution, enable_contact_management, enable_memory_search, enable_caching, debug_mode, log_agent_decisions, expose_logs_ui
+2025-06-13 13:33:23,246 - __main__ - INFO - 🌐 Server starting on http://localhost:9091
+2025-06-13 13:33:23,246 - __main__ - INFO - 📋 Add this URL to OpenWebUI Pipelines: http://localhost:9091
+2025-06-13 13:33:23,246 - __main__ - INFO - 🔧 Valve Management:
+2025-06-13 13:33:23,246 - __main__ - INFO -    - Enhanced valve specification with categories and validation
+2025-06-13 13:33:23,246 - __main__ - INFO -    - Real-time configuration updates
+2025-06-13 13:33:23,246 - __main__ - INFO -    - Advanced options for expert users
+2025-06-13 13:33:23,246 - __main__ - INFO -    - Persistent configuration storage
+INFO:     Started server process [47547]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:9091 (Press CTRL+C to quit)
+INFO:     127.0.0.1:64883 - "GET /v1/chat/crewai/models HTTP/1.1" 200 OK
+INFO:     192.168.4.229:40532 - "GET / HTTP/1.1" 200 OK
+WARNING:  Invalid HTTP request received.
+WARNING:  Invalid HTTP request received.
+INFO:     127.0.0.1:51383 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51383 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51414 - "GET /models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51419 - "GET /models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51423 - "GET /models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51425 - "GET /pipelines HTTP/1.1" 200 OK
+2025-06-16 13:45:23,362 - __main__ - INFO - 🔧 Valve spec requested for pipeline myndy_ai
+INFO:     127.0.0.1:51427 - "GET /myndy_ai/valves/spec HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51429 - "GET /myndy_ai/valves HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [47547]

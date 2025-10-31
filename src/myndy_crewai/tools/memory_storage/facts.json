@@ -1,0 +1,32 @@
+{
+  "fact_6f4ff899-df83-4508-b037-2ce351f05325": {
+    "id": "fact_6f4ff899-df83-4508-b037-2ce351f05325",
+    "content": "Brent Bushnell works at Two Bit Circus as Owner",
+    "entity_id": "entity_2fc4b013-5d09-4134-bb59-e004e47280a7",
+    "entity_name": "Brent Bushnell",
+    "source": "conversation",
+    "confidence": 0.8,
+    "verified": false,
+    "created_at": "2025-05-30T15:46:46.536038"
+  },
+  "fact_2985386f-353d-42f7-b80e-3b8c78ddd654": {
+    "id": "fact_2985386f-353d-42f7-b80e-3b8c78ddd654",
+    "content": "Test Person is associated with Test Company",
+    "entity_id": "entity_99ec592c-2b02-4efe-b2a9-84eb1e0c353a",
+    "entity_name": "Test Person",
+    "source": "conversation",
+    "confidence": 0.8,
+    "verified": false,
+    "created_at": "2025-05-30T16:11:46.376699"
+  },
+  "fact_5a260231-7351-48e4-8ffe-533563b3be8c": {
+    "id": "fact_5a260231-7351-48e4-8ffe-533563b3be8c",
+    "content": "Test Person is associated with Test Company",
+    "entity_id": "entity_2fdb0e47-6714-46d7-8441-b37a9d36449b",
+    "entity_name": "Test Person",
+    "source": "conversation",
+    "confidence": 0.8,
+    "verified": false,
+    "created_at": "2025-05-30T16:47:26.365676"
+  }
+}

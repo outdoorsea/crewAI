@@ -1,0 +1,63 @@
+/Users/jeremy/myndy/venv/lib/python3.13/site-packages/crewai/telemtry/telemetry.py:6: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+/Users/jeremy/myndy/venv/lib/python3.13/site-packages/pydantic/_internal/_generate_schema.py:913: UserWarning: Mixing V1 models and V2 models (or constructs, like `TypeAdapter`) is not supported. Please upgrade `CrewAgentExecutor` to V2.
+  warn(
+INFO:tools.myndy_bridge:Successfully registered conversation analysis tools in myndy registry
+INFO:tools.myndy_bridge:Successfully imported myndy registry via explicit path
+INFO:tools.myndy_bridge:Created CrewAI tool for: extract_conversation_entities (category: conversation)
+INFO:tools.myndy_bridge:Created CrewAI tool for: infer_conversation_intent (category: conversation)
+INFO:tools.myndy_bridge:Created CrewAI tool for: extract_from_conversation_history (category: conversation)
+INFO:tools.myndy_bridge:Created CrewAI tool for: extract_document_tables (category: general)
+INFO:tools.myndy_bridge:Created CrewAI tool for: extract_entities (category: general)
+INFO:tools.myndy_bridge:Created CrewAI tool for: extract_keywords (category: general)
+INFO:tools.myndy_bridge:Created CrewAI tool for: extract_document_text (category: general)
+INFO:tools.myndy_bridge:Loaded 7 tools for agent role: memory_librarian
+INFO:config.llm_config:Created ChatOllama LLM with model: llama3.2
+INFO:tools.myndy_bridge:Created CrewAI tool for: analyze_text (category: general)
+INFO:tools.myndy_bridge:Created CrewAI tool for: analyze_sentiment (category: general)
+INFO:tools.myndy_bridge:Created CrewAI tool for: summarize_text (category: general)
+INFO:tools.myndy_bridge:Created CrewAI tool for: detect_language (category: general)
+INFO:tools.myndy_bridge:Created CrewAI tool for: search_transactions (category: general)
+INFO:tools.myndy_bridge:Created CrewAI tool for: search_document (category: general)
+INFO:tools.myndy_bridge:Created CrewAI tool for: summarize_document (category: general)
+INFO:tools.myndy_bridge:Created CrewAI tool for: convert_document (category: general)
+INFO:tools.myndy_bridge:Created CrewAI tool for: process_document (category: general)
+INFO:tools.myndy_bridge:Loaded 15 tools for agent role: research_specialist
+INFO:config.llm_config:Created ChatOllama LLM with model: mixtral
+INFO:tools.myndy_bridge:Created CrewAI tool for: get_current_time (category: general)
+INFO:tools.myndy_bridge:Created CrewAI tool for: local_weather (category: general)
+INFO:tools.myndy_bridge:Created CrewAI tool for: format_weather (category: general)
+INFO:tools.myndy_bridge:Created CrewAI tool for: weather_api (category: general)
+INFO:tools.myndy_bridge:Created CrewAI tool for: calendar_query (category: general)
+INFO:tools.myndy_bridge:Created CrewAI tool for: format_date (category: general)
+INFO:tools.myndy_bridge:Created CrewAI tool for: calculate_time_difference (category: general)
+INFO:tools.myndy_bridge:Created CrewAI tool for: get_recent_expenses (category: general)
+INFO:tools.myndy_bridge:Created CrewAI tool for: get_spending_summary (category: general)
+INFO:tools.myndy_bridge:Created CrewAI tool for: get_transaction (category: general)
+INFO:tools.myndy_bridge:Created CrewAI tool for: unix_timestamp (category: general)
+INFO:tools.myndy_bridge:Loaded 11 tools for agent role: personal_assistant
+INFO:config.llm_config:Created ChatOllama LLM with model: llama3.2
+INFO:tools.myndy_bridge:Created CrewAI tool for: health_query (category: general)
+INFO:tools.myndy_bridge:Created CrewAI tool for: health_summary_simple (category: general)
+INFO:tools.myndy_bridge:Created CrewAI tool for: health_query_simple (category: general)
+INFO:tools.myndy_bridge:Loaded 3 tools for agent role: health_analyst
+INFO:config.llm_config:Created ChatOllama LLM with model: phi3
+INFO:tools.myndy_bridge:Created CrewAI tool for: finance_tool (category: general)
+INFO:tools.myndy_bridge:Loaded 6 tools for agent role: finance_tracker
+INFO:config.llm_config:Created ChatOllama LLM with model: mixtral
+INFO:crewai_memex_pipeline:CrewAI agents and crews imported successfully
+INFO:crewai_memex_pipeline:Myndy AI v0.1.0 - Personal Intelligence Pipeline initialized
+INFO:__main__:Starting CrewAI-Myndy Pipeline Server
+INFO:__main__:🚀 Features: Intelligent Agent Routing + Contact Management + Memory Search
+INFO:__main__:🤖 Available agents: 5 specialized agents + auto-routing
+INFO:__main__:🌐 Server starting on http://localhost:9099
+INFO:__main__:📋 Add this URL to OpenWebUI Pipelines: http://localhost:9099
+INFO:     Started server process [73844]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:9099 (Press CTRL+C to quit)
+INFO:     127.0.0.1:64138 - "GET / HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [73844]

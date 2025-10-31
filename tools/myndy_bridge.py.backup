@@ -1,0 +1,2103 @@
+"""
+Myndy-CrewAI Tool Bridge
+
+This module provides a bridge between the Myndy tool ecosystem and CrewAI,
+allowing CrewAI agents to leverage the 530+ tools available in the Myndy system.
+
+File: tools/myndy_bridge.py
+"""
+
+import json
+import logging
+import os
+import sys
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
+
+try:
+    # Try LangChain's BaseTool first (which CrewAI uses)
+    from langchain.tools import BaseTool
+except ImportError:
+    try:
+        from langchain_core.tools import BaseTool
+    except ImportError:
+        # Fallback to CrewAI imports
+        try:
+            from crewai.tools.base_tool import BaseTool
+        except ImportError:
+            try:
+                from crewai.tools import BaseTool
+            except ImportError:
+                from crewai import BaseTool
+
+from pydantic import BaseModel, Field
+from typing import Type
+
+# Configure logging first
+logger = logging.getLogger(__name__)
+
+# Module-level storage for temporary profile data
+_temp_profile_storage = {}
+
+# Import environment configuration
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from config.env_config import env_config
+
+# NOTE: Direct imports from myndy-ai are PROHIBITED in FastAPI architecture
+# All communication must go through HTTP API endpoints
+
+# HTTP-only configuration
+myndy_available = True  # Always assume API is available
+
+# Tool metadata structure for HTTP-based tools
+class ToolMetadata:
+    """Metadata for HTTP-based tools."""
+    def __init__(self, name: str, description: str, category: str = "general"):
+        self.name = name
+        self.description = description
+        self.category = category
+
+# Initialize myndy registry system  
+try:
+    # Simple conversation analysis functions that don't depend on complex imports
+    
+    def extract_conversation_entities(conversation_text: str = None, user_message: str = None, message: str = None, conversation_id: str = None, min_confidence: float = 0.5, **kwargs):
+            """Extract entities from conversation text."""
+    # Handle different parameter names that might be passed
+            text = conversation_text or user_message or message or ""
+    # Handle cases where the parameter name has a space (CrewAI quirk)
+    if 'User message' in kwargs:
+                text = text or kwargs['User message']
+            
+    # Handle CrewAI's specific input format where it might pass "User message: 'actual text'"
+    import re
+    if text and isinstance(text, str) and text.startswith("User message:"):
+                match = re.search(r"User message:\s*['\"](.+?)['\"]", text)
+    if match:
+                    text = match.group(1)
+            
+    # Debug parameter handling
+    logger.debug(f"Entity extraction - conversation_text={conversation_text}, user_message={user_message}, message={message}, kwargs={kwargs}")
+    logger.debug(f"Entity extraction - Final text: '{text}' (length: {len(text)})")
+            
+    from datetime import datetime
+            
+            entities = []
+            
+    # Simple entity patterns
+            email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+            phone_pattern = r'\b(?:\+?1[-.\s]?)?(?:\(?[0-9]{3}\)?[-.\s]?)?[0-9]{3}[-.\s]?[0-9]{4}\b'
+            
+    # Find emails
+            for match in re.finditer(email_pattern, text, re.IGNORECASE):
+                entities.append({
+                    'text': match.group(),
+                    'type': 'email',
+                    'confidence': 0.9,
+                    'start': match.start(),
+                    'end': match.end()
+                })
+            
+    # Find phone numbers
+            for match in re.finditer(phone_pattern, text):
+                entities.append({
+                    'text': match.group(),
+                    'type': 'phone',
+                    'confidence': 0.9,
+                    'start': match.start(),
+                    'end': match.end()
+                })
+            
+    # Find person names (simple heuristic)
+            words = text.split()
+            for i, word in enumerate(words):
+    if word[0].isupper() and len(word) > 2:
+    if i + 1 < len(words) and words[i + 1][0].isupper():
+                        full_name = f"{word} {words[i + 1]}"
+                        entities.append({
+                            'text': full_name,
+                            'type': 'person',
+                            'confidence': 0.7,
+                            'start': text.find(full_name),
+                            'end': text.find(full_name) + len(full_name)
+                        })
+            
+            return {
+                'entities_found': len(entities),
+                'entities': entities,
+                'conversation_id': conversation_id,
+                'processed_at': datetime.now().isoformat()
+            }
+        
+    def infer_conversation_intent(conversation_text: str = None, user_message: str = None, message: str = None, intent_types: list = None, auto_update: bool = False, **kwargs):
+            """Infer user intent from conversation text."""
+    from datetime import datetime
+    import re
+            
+    # Handle different parameter names that might be passed
+            text = conversation_text or user_message or message or ""
+    # Handle cases where the parameter name has a space (CrewAI quirk)
+    if 'User message' in kwargs:
+                text = text or kwargs['User message']
+            
+    # Handle CrewAI's specific input format where it might pass "User message: 'actual text'"
+    if text and text.startswith("User message:"):
+                match = re.search(r"User message:\s*['\"](.+?)['\"]", text)
+    if match:
+                    text = match.group(1)
+            
+    # Debug parameter handling
+    logger.debug(f"Intent inference - conversation_text={conversation_text}, user_message={user_message}, message={message}, kwargs={kwargs}")
+    logger.debug(f"Intent inference - Final text: '{text}' (length: {len(text)})")
+            
+            text_lower = text.lower()
+            intent_keywords = {
+                'add_contact': ['contact', 'person', 'meet', 'introduce', 'know', 'friend'],
+                'update_info': ['update', 'change', 'modify', 'correct', 'new'],
+                'record_event': ['event', 'meeting', 'appointment', 'schedule', 'plan'],
+                'save_info': ['remember', 'save', 'store', 'keep', 'note'],
+                'search_info': ['find', 'search', 'look', 'what', 'where', 'when', 'who']
+            }
+            
+            intent_scores = {}
+            types_to_check = intent_types or list(intent_keywords.keys())
+            
+            for intent_type in types_to_check:
+                score = 0
+                keywords = intent_keywords.get(intent_type, [])
+                for keyword in keywords:
+    if keyword in text_lower:
+                        score += 1
+    if keywords:
+                    intent_scores[intent_type] = score / len(keywords)
+            
+            primary_intent = max(intent_scores, key=intent_scores.get) if intent_scores else 'unknown'
+            confidence = intent_scores.get(primary_intent, 0.0)
+            
+            return {
+                'primary_intent': primary_intent,
+                'confidence': confidence,
+                'all_scores': intent_scores,
+                'auto_update_enabled': auto_update,
+                'processed_at': datetime.now().isoformat()
+            }
+        
+    def extract_from_conversation_history(conversation_history: str = None, user_message: str = None, message: str = None, extraction_types: list = None, max_entity_confidence: float = 1.0, **kwargs):
+            """Process conversation history to extract comprehensive information."""
+    from datetime import datetime
+            
+    # Handle different parameter names that might be passed  
+            text = conversation_history or user_message or message or ""
+    # Handle cases where the parameter name has a space (CrewAI quirk)
+    if 'User message' in kwargs:
+                text = text or kwargs['User message']
+            
+    # Handle CrewAI's specific input format where it might pass "User message: 'actual text'"
+    import re
+    if text and isinstance(text, str) and text.startswith("User message:"):
+                match = re.search(r"User message:\s*['\"](.+?)['\"]", text)
+    if match:
+                    text = match.group(1)
+            
+    # Debug parameter handling
+    logger.debug(f"Conversation history extraction - conversation_history={conversation_history}, user_message={user_message}, message={message}, kwargs={kwargs}")
+    logger.debug(f"Conversation history extraction - Final text: '{text}' (length: {len(text)})")
+            
+    if extraction_types is None:
+                extraction_types = ['entities', 'intents', 'key_points']
+            
+            results = {
+                'conversation_length': len(text),
+                'extraction_types': extraction_types,
+                'processed_at': datetime.now().isoformat()
+            }
+            
+    if 'entities' in extraction_types:
+                entity_result = extract_conversation_entities(conversation_text=text)
+                results['entities'] = entity_result['entities']
+                results['entity_count'] = entity_result['entities_found']
+            
+    if 'intents' in extraction_types:
+                intent_result = infer_conversation_intent(conversation_text=text)
+                results['intent'] = intent_result
+            
+    if 'key_points' in extraction_types:
+    import re
+                sentences = re.split(r'[.!?]+', text)
+                key_points = [s.strip() for s in sentences if len(s.strip()) > 20][:5]
+                results['key_points'] = key_points
+                results['key_point_count'] = len(key_points)
+            
+            return results
+        
+    # Register the tools with the myndy registry
+    myndy_registry.register_from_function(
+            extract_conversation_entities,
+            name="extract_conversation_entities",
+            description="Extract entities from conversation history and store them in memory",
+            category="conversation"
+        )
+        
+    myndy_registry.register_from_function(
+        infer_conversation_intent,
+        name="infer_conversation_intent", 
+        description="Infer user intent to update the database from conversation and automatically take actions",
+        category="conversation"
+        )
+        
+    myndy_registry.register_from_function(
+            extract_from_conversation_history,
+            name="extract_from_conversation_history",
+            description="Process conversation history to extract meaningful information including entities, intents, and key points",
+            category="conversation"
+        )
+        
+    logger.info("Successfully registered conversation analysis tools in myndy registry")
+        
+    except Exception as conv_e:
+    logger.warning(f"Failed to register conversation tools: {conv_e}")
+    
+    # Register proactive monitoring tools
+    try:
+    # Import the proactive monitoring functions
+    sys.path.insert(0, str(Path(__file__).parent))
+    from proactive_monitoring_tool import (
+            start_proactive_monitoring,
+            stop_proactive_monitoring, 
+            analyze_conversation_for_updates,
+            get_monitoring_status,
+            force_context_refresh
+        )
+        
+    # Register proactive monitoring tools
+    myndy_registry.register_from_function(
+            start_proactive_monitoring,
+            name="start_proactive_monitoring",
+            description="Start proactive monitoring to automatically check and update user context",
+            category="status"
+        )
+        
+    myndy_registry.register_from_function(
+            stop_proactive_monitoring,
+            name="stop_proactive_monitoring", 
+            description="Stop proactive monitoring of user context",
+            category="status"
+        )
+        
+    myndy_registry.register_from_function(
+            analyze_conversation_for_updates,
+            name="analyze_conversation_for_updates",
+            description="Analyze conversation text to automatically detect and apply status/profile updates",
+            category="conversation"
+        )
+        
+    myndy_registry.register_from_function(
+            get_monitoring_status,
+            name="get_monitoring_status",
+            description="Get current status of proactive monitoring system",
+            category="status"
+        )
+        
+    myndy_registry.register_from_function(
+            force_context_refresh,
+            name="force_context_refresh",
+            description="Force an immediate refresh of user context from all available sources",
+            category="status"
+        )
+        
+    logger.info("Successfully registered proactive monitoring tools in myndy registry")
+        
+    except Exception as mon_e:
+    # More detailed error handling for proactive monitoring tools
+        error_msg = str(mon_e)
+    if "logger" in error_msg and "not defined" in error_msg:
+    logger.warning(f"Failed to register proactive monitoring tools - logger definition issue: {mon_e}")
+        elif "qdrant_client" in error_msg:
+    logger.warning(f"Failed to register proactive monitoring tools - qdrant_client not available: {mon_e}")
+    else:
+    logger.warning(f"Failed to register proactive monitoring tools: {mon_e}")
+    
+    # Check if qdrant_client is available for all qdrant-dependent tools
+    try:
+    import qdrant_client
+    qdrant_available = True
+    except ImportError:
+    qdrant_available = False
+        
+    # Register conversation memory persistence tools
+    try:
+    if qdrant_available:
+    from conversation_memory_persistence import (
+                store_conversation_analysis,
+                search_conversation_memory,
+                get_conversation_summary
+            )
+    else:
+    # Skip registration if qdrant_client not available
+        raise ImportError("qdrant_client not available - skipping conversation memory persistence tools")
+        
+    # Register conversation memory persistence tools
+    myndy_registry.register_from_function(
+            store_conversation_analysis,
+            name="store_conversation_analysis",
+            description="Store conversation analysis results in vector memory for long-term retrieval",
+            category="conversation"
+        )
+        
+    myndy_registry.register_from_function(
+            search_conversation_memory,
+            name="search_conversation_memory",
+            description="Search stored conversation memories using vector similarity",
+            category="conversation"
+        )
+        
+    myndy_registry.register_from_function(
+            get_conversation_summary,
+            name="get_conversation_summary",
+            description="Get comprehensive summary of a stored conversation and its analysis",
+            category="conversation"
+        )
+        
+    logger.info("Successfully registered conversation memory persistence tools in myndy registry")
+        
+    except Exception as mem_e:
+    logger.warning(f"Failed to register conversation memory persistence tools: {mem_e}")
+    
+    # Register storage initialization tools
+    try:
+    # Check if qdrant_client is available before importing storage tools
+    if qdrant_available:
+    from storage_initialization import (
+                initialize_all_storage,
+                get_storage_status,
+                verify_storage_functionality,
+                reset_storage
+            )
+    else:
+    # Skip registration if qdrant_client not available
+        raise ImportError("qdrant_client not available - skipping storage initialization tools")
+        
+    # Register storage initialization tools
+    myndy_registry.register_from_function(
+            initialize_all_storage,
+            name="initialize_all_storage",
+            description="Initialize all storage components for status and profile persistence",
+            category="status"
+        )
+        
+    myndy_registry.register_from_function(
+            get_storage_status,
+            name="get_storage_status",
+            description="Get current status of all storage components including Qdrant and file storage",
+            category="status"
+        )
+        
+    myndy_registry.register_from_function(
+            verify_storage_functionality,
+            name="verify_storage_functionality",
+            description="Verify that storage functionality is working properly with connectivity tests",
+            category="status"
+        )
+        
+    myndy_registry.register_from_function(
+            reset_storage,
+            name="reset_storage",
+            description="Reset storage components (use with caution - requires confirmation)",
+            category="status"
+        )
+        
+    logger.info("Successfully registered storage initialization tools in myndy registry")
+        
+    except Exception as storage_e:
+    logger.warning(f"Failed to register storage initialization tools: {storage_e}")
+    
+    # Register agent collaboration tools
+    try:
+    from agent_collaboration_framework import (
+            create_collaboration_session,
+            delegate_task,
+            request_collaboration,
+            update_task_status,
+            get_agent_messages,
+            get_collaboration_status
+        )
+        
+    # Register collaboration framework tools
+    myndy_registry.register_from_function(
+            create_collaboration_session,
+            name="create_collaboration_session",
+            description="Create a new collaboration session for complex multi-agent requests",
+            category="collaboration"
+        )
+        
+    myndy_registry.register_from_function(
+            delegate_task,
+            name="delegate_task",
+            description="Delegate a task from one agent to another with proper context",
+            category="collaboration"
+        )
+        
+    myndy_registry.register_from_function(
+            request_collaboration,
+            name="request_collaboration",
+            description="Request collaboration from another agent for assistance",
+            category="collaboration"
+        )
+        
+    myndy_registry.register_from_function(
+            update_task_status,
+            name="update_task_status",
+            description="Update the status of a collaboration task with results",
+            category="collaboration"
+        )
+        
+    myndy_registry.register_from_function(
+            get_agent_messages,
+            name="get_agent_messages",
+            description="Get messages and requests for a specific agent",
+            category="collaboration"
+        )
+        
+    myndy_registry.register_from_function(
+            get_collaboration_status,
+            name="get_collaboration_status",
+            description="Get status of collaboration sessions and active tasks",
+            category="collaboration"
+        )
+        
+    logger.info("Successfully registered agent collaboration tools in myndy registry")
+        
+    except Exception as collab_e:
+    logger.warning(f"Failed to register agent collaboration tools: {collab_e}")
+    
+    # Register shared context tools
+    try:
+    from shared_context_system import (
+            create_shared_context,
+            update_shared_context,
+            get_shared_context,
+            search_shared_context,
+            start_agent_conversation,
+            add_conversation_message,
+            get_context_system_status
+        )
+        
+    # Register shared context tools
+    myndy_registry.register_from_function(
+            create_shared_context,
+            name="create_shared_context",
+            description="Create a shared context item for multi-agent coordination",
+            category="collaboration"
+        )
+        
+    myndy_registry.register_from_function(
+            update_shared_context,
+            name="update_shared_context",
+            description="Update an existing shared context item",
+            category="collaboration"
+        )
+        
+    myndy_registry.register_from_function(
+            get_shared_context,
+            name="get_shared_context",
+            description="Retrieve a shared context item by ID",
+            category="collaboration"
+        )
+        
+    myndy_registry.register_from_function(
+            search_shared_context,
+            name="search_shared_context",
+            description="Search for shared context items by query, type, or tags",
+            category="collaboration"
+        )
+        
+    myndy_registry.register_from_function(
+            start_agent_conversation,
+            name="start_agent_conversation",
+            description="Start a new conversation context for multi-agent collaboration",
+            category="conversation"
+        )
+        
+    myndy_registry.register_from_function(
+            add_conversation_message,
+            name="add_conversation_message",
+            description="Add a message to an active agent conversation",
+            category="conversation"
+        )
+        
+    myndy_registry.register_from_function(
+            get_context_system_status,
+            name="get_context_system_status",
+            description="Get overall shared context system status",
+            category="collaboration"
+        )
+        
+    logger.info("Successfully registered shared context tools in myndy registry")
+        
+    except Exception as context_e:
+    logger.warning(f"Failed to register shared context tools: {context_e}")
+    
+    # Register memory storage tools
+    try:
+    from memory_storage_tools import (
+            create_entity,
+            add_fact,
+            add_preference,
+            search_memory,
+            get_current_status,
+            get_self_profile,
+            update_status,
+            store_conversation_analysis
+        )
+        
+    # Register memory storage tools
+    myndy_registry.register_from_function(
+            create_entity,
+            name="create_entity",
+            description="Create a new person or organization entity in the memory system",
+            category="memory"
+        )
+        
+    myndy_registry.register_from_function(
+            add_fact,
+            name="add_fact",
+            description="Add a fact about a person or organization to persistent memory",
+            category="memory"
+        )
+        
+    myndy_registry.register_from_function(
+            add_preference,
+            name="add_preference",
+            description="Add a preference or attribute to a person's profile",
+            category="memory"
+        )
+        
+    myndy_registry.register_from_function(
+            search_memory,
+            name="search_memory",
+            description="Search the memory system for people, organizations, and facts",
+            category="memory"
+        )
+        
+    myndy_registry.register_from_function(
+            get_current_status,
+            name="get_current_status",
+            description="Get the current user status and context information",
+            category="status"
+        )
+        
+    myndy_registry.register_from_function(
+            get_self_profile,
+            name="get_self_profile",
+            description="Get the user's profile information and personal details",
+            category="profile"
+        )
+        
+    myndy_registry.register_from_function(
+            update_status,
+            name="update_status",
+            description="Update the user's current status, mood, or activity",
+            category="status"
+        )
+        
+    myndy_registry.register_from_function(
+            store_conversation_analysis,
+            name="store_conversation_analysis",
+            description="Store conversation analysis results and extracted entities in memory",
+            category="conversation"
+        )
+        
+    logger.info("Successfully registered memory storage tools in myndy registry")
+        
+    except Exception as storage_e:
+    logger.warning(f"Failed to register memory storage tools: {storage_e}")
+    
+    # Register comprehensive memory storage tools
+    try:
+    from comprehensive_memory_storage import (
+            create_contact, create_event, create_task, create_project, create_place,
+            create_journal_entry, record_health_data, add_movie, create_group,
+            record_email, add_short_term_memory, search_all_memory
+        )
+        
+    # Register all comprehensive memory tools
+    myndy_registry.register_from_function(
+            create_contact,
+            name="create_contact",
+            description="Create a new contact with name, email, phone, and organization details",
+            category="contacts"
+        )
+        
+    myndy_registry.register_from_function(
+            create_event,
+            name="create_event", 
+            description="Create a new event with date, location, and associated people",
+            category="events"
+        )
+        
+    myndy_registry.register_from_function(
+            create_task,
+            name="create_task",
+            description="Create a new task with title, description, due date, and priority",
+            category="tasks"
+        )
+        
+    myndy_registry.register_from_function(
+            create_project,
+            name="create_project",
+            description="Create a new project with name, description, and timeline",
+            category="projects"
+        )
+        
+    myndy_registry.register_from_function(
+            create_place,
+            name="create_place",
+            description="Create a new place with name, address, and category",
+            category="places"
+        )
+        
+    myndy_registry.register_from_function(
+            create_journal_entry,
+            name="create_journal_entry",
+            description="Create a new journal entry with content, date, and mood",
+            category="journal"
+        )
+        
+    myndy_registry.register_from_function(
+            record_health_data,
+            name="record_health_data",
+            description="Record health metrics like weight, steps, sleep, etc.",
+            category="health"
+        )
+        
+    myndy_registry.register_from_function(
+            add_movie,
+            name="add_movie",
+            description="Add a movie to the collection with title, year, genre, and rating",
+            category="movies"
+        )
+        
+    myndy_registry.register_from_function(
+            create_group,
+            name="create_group",
+            description="Create a new group with name, description, and members",
+            category="groups"
+        )
+        
+    myndy_registry.register_from_function(
+            record_email,
+            name="record_email",
+            description="Record an important email with subject, sender, and summary",
+            category="emails"
+        )
+        
+    myndy_registry.register_from_function(
+            add_short_term_memory,
+            name="add_short_term_memory",
+            description="Add something to short term memory for temporary recall",
+            category="memory"
+        )
+        
+    myndy_registry.register_from_function(
+            search_all_memory,
+            name="search_all_memory",
+            description="Search across all memory types (contacts, events, tasks, projects, etc.)",
+            category="search"
+        )
+        
+    logger.info("Successfully registered comprehensive memory storage tools in myndy registry")
+        
+    except Exception as comp_storage_e:
+    logger.warning(f"Failed to register comprehensive memory storage tools: {comp_storage_e}")
+    
+    # Register agent delegation tools
+    try:
+    from agent_delegation_system import (
+            find_best_agent_for_task,
+            delegate_task_to_agent,
+            respond_to_task_delegation,
+            create_task_handoff,
+            get_agent_workload_status,
+            get_delegation_system_status
+        )
+        
+    # Register delegation system tools
+    myndy_registry.register_from_function(
+            find_best_agent_for_task,
+            name="find_best_agent_for_task",
+            description="Find the best agent to handle a task based on capabilities and workload",
+            category="collaboration"
+        )
+        
+    myndy_registry.register_from_function(
+            delegate_task_to_agent,
+            name="delegate_task_to_agent",
+            description="Create a delegation request to hand off a task to another agent",
+            category="collaboration"
+        )
+        
+    myndy_registry.register_from_function(
+            respond_to_task_delegation,
+            name="respond_to_task_delegation",
+            description="Respond to a delegation request (accept or reject)",
+            category="collaboration"
+        )
+        
+    myndy_registry.register_from_function(
+            create_task_handoff,
+            name="create_task_handoff",
+            description="Create a complete task handoff with context and progress",
+            category="collaboration"
+        )
+        
+    myndy_registry.register_from_function(
+            get_agent_workload_status,
+            name="get_agent_workload_status",
+            description="Get current workload and status for an agent",
+            category="collaboration"
+        )
+        
+    myndy_registry.register_from_function(
+            get_delegation_system_status,
+            name="get_delegation_system_status",
+            description="Get overall delegation system status and health",
+            category="collaboration"
+        )
+        
+    logger.info("Successfully registered agent delegation tools in myndy registry")
+        
+    except Exception as delegation_e:
+    logger.warning(f"Failed to register agent delegation tools: {delegation_e}")
+    
+    # Register feedback analytics tools
+    try:
+    from feedback_analytics import (
+            record_thumbs_up_feedback,
+            record_thumbs_down_feedback,
+            get_agent_performance_metrics,
+            get_all_agent_performance_metrics,
+            get_feedback_summary,
+            get_feedback_system_health
+        )
+        
+    # Register feedback analytics tools
+    myndy_registry.register_from_function(
+            record_thumbs_up_feedback,
+            name="record_thumbs_up_feedback",
+            description="Record positive (👍) feedback for an agent response",
+            category="analytics"
+        )
+        
+    myndy_registry.register_from_function(
+            record_thumbs_down_feedback,
+            name="record_thumbs_down_feedback",
+            description="Record negative (👎) feedback for an agent response",
+            category="analytics"
+        )
+        
+    myndy_registry.register_from_function(
+            get_agent_performance_metrics,
+            name="get_agent_performance_metrics",
+            description="Get detailed performance metrics for a specific agent",
+            category="analytics"
+        )
+        
+    myndy_registry.register_from_function(
+            get_all_agent_performance_metrics,
+            name="get_all_agent_performance_metrics",
+            description="Get performance metrics for all agents",
+            category="analytics"
+        )
+        
+    myndy_registry.register_from_function(
+            get_feedback_summary,
+            name="get_feedback_summary",
+            description="Get summary of user feedback over a specified time period",
+            category="analytics"
+        )
+        
+    myndy_registry.register_from_function(
+            get_feedback_system_health,
+            name="get_feedback_system_health",
+            description="Get overall feedback system health and status",
+            category="analytics"
+        )
+        
+    logger.info("Successfully registered feedback analytics tools in myndy registry")
+        
+    except Exception as analytics_e:
+    logger.warning(f"Failed to register feedback analytics tools: {analytics_e}")
+    
+    # Register analytics dashboard tools
+    try:
+    from analytics_dashboard import (
+            generate_analytics_dashboard_tool,
+            get_quick_performance_summary_tool,
+            compare_agent_performance
+        )
+        
+    # Register analytics dashboard tools
+    myndy_registry.register_from_function(
+            generate_analytics_dashboard_tool,
+            name="generate_analytics_dashboard",
+            description="Generate comprehensive analytics dashboard showing agent performance and user feedback",
+            category="analytics"
+        )
+        
+    myndy_registry.register_from_function(
+            get_quick_performance_summary_tool,
+            name="get_quick_performance_summary",
+            description="Get a quick performance summary for the last 24 hours",
+            category="analytics"
+        )
+        
+    myndy_registry.register_from_function(
+            compare_agent_performance,
+            name="compare_agent_performance",
+            description="Compare performance metrics between two agents",
+            category="analytics"
+        )
+        
+    logger.info("Successfully registered analytics dashboard tools in myndy registry")
+        
+    except Exception as dashboard_e:
+    logger.warning(f"Failed to register analytics dashboard tools: {dashboard_e}")
+    
+    logger.info("Successfully imported myndy registry via explicit path")
+    
+except Exception as e:
+    logger.warning(f"Could not import myndy registry: {e}")
+    myndy_registry = None
+    ToolMetadata = None
+
+
+class MyndyToolError(Exception):
+    """Custom exception for Myndy tool execution errors."""
+    pass
+
+
+# Pre-defined tool classes that we know work with proper type annotations
+class GetCurrentTimeTool(BaseTool):
+    name: str = "get_current_time"
+    description: str = "Get the current time in any timezone. Use timezone names like 'America/Los_Angeles', 'Europe/London', 'UTC', etc."
+    
+    def _run(self, timezone="UTC", **kwargs) -> str:
+        """Get current time implementation - simplified without pytz dependency"""
+        from datetime import datetime, timezone as dt_timezone
+        import json
+        
+        logger.debug(f"get_current_time called with timezone={timezone}, extra kwargs: {kwargs}")
+        
+        try:
+            # Simple timezone handling without pytz
+            if timezone.upper() == "UTC":
+                current_time = datetime.now(dt_timezone.utc)
+                tz_name = "UTC"
+            else:
+                # For non-UTC timezones, use local time as fallback
+                current_time = datetime.now()
+                tz_name = timezone
+            
+            result = {
+                "current_time": current_time.strftime("%Y-%m-%d %H:%M:%S"),
+                "timezone": tz_name,
+                "timestamp": current_time.timestamp(),
+                "formatted": current_time.strftime("%A, %B %d, %Y at %I:%M %p"),
+                "note": "Simplified timezone handling - install pytz for full timezone support"
+            }
+            return json.dumps(result, indent=2)
+except Exception as e:
+            return json.dumps({"error": f"Failed to get time for timezone {timezone}: {e}"})
+
+    class GetSelfProfileTool(BaseTool):
+    name: str = "get_self_profile"
+    description: str = "Get the user's profile information and personal details"
+    
+    def _run(self, **kwargs) -> str:
+        """Get self profile implementation - uses HTTP client or CRUD based on configuration"""
+        from datetime import datetime
+        import json
+        
+        # REQUIRED: Use HTTP client only (FastAPI architecture)
+        try:
+            from .myndy_http_client import GetSelfProfileHTTPTool
+            http_tool = GetSelfProfileHTTPTool()
+            return http_tool._run(**kwargs)
+except Exception as e:
+            logger.error(f"HTTP client failed - FastAPI service may be unavailable: {e}")
+            return {
+                "success": False,
+                "error": "FastAPI service unavailable",
+                "message": "Cannot retrieve profile - myndy-ai API service is not accessible",
+                "note": "Ensure myndy-ai FastAPI server is running on http://127.0.0.1:8000"
+            }
+            
+            if profile:
+                # Convert profile to dictionary
+                if hasattr(profile, 'model_dump'):
+                    profile_dict = profile.model_dump()
+                elif hasattr(profile, 'dict'):
+                    profile_dict = profile.dict()
+                else:
+                    profile_dict = profile.__dict__
+                
+                result = {
+                    "success": True,
+                    "profile": profile_dict,
+                    "message": f"Profile found for {profile_dict.get('name', 'user')}",
+                    "retrieved_at": datetime.now().isoformat(),
+                    "note": "Profile retrieved from myndy-ai memory system (direct CRUD)"
+                }
+            else:
+                result = {
+                    "success": True,
+                    "message": "No user profile found in memory system",
+                    "retrieved_at": datetime.now().isoformat(),
+                    "note": "Use update_self_profile to create a profile"
+                }
+                
+        except Exception as e:
+            logger.debug(f"Myndy-ai CRUD get_self_profile failed: {e}")
+            # Fallback to check temporary storage for profile data  
+            if _temp_profile_storage:
+                result = {
+                    "success": True,
+                    "profile": _temp_profile_storage,
+                    "message": f"Profile found with {len(_temp_profile_storage)} fields",
+                    "retrieved_at": datetime.now().isoformat(),
+                    "note": "Profile retrieved from temporary fallback - myndy-ai system not available"
+                }
+            else:
+                result = {
+                    "success": True,
+                    "message": "No user profile found in memory",
+                    "retrieved_at": datetime.now().isoformat(),
+                    "note": "Myndy-ai system not available, use update_self_profile to create a profile"
+                }
+        
+        return json.dumps(result, indent=2)
+
+    class UpdateSelfProfileTool(BaseTool):
+    name: str = "update_self_profile"
+    description: str = "Update the user's profile information with new personal details"
+    
+    def _run(self, name="", age="", email="", location="", occupation="", interests="", bio="", **kwargs) -> str:
+        """Update self profile implementation - uses HTTP client or CRUD based on configuration"""
+        from datetime import datetime
+        import json
+        import uuid
+        
+        # REQUIRED: Use HTTP client only (FastAPI architecture)
+        try:
+            from .myndy_http_client import UpdateSelfProfileHTTPTool
+            http_tool = UpdateSelfProfileHTTPTool()
+            return http_tool._run(name=name, age=age, email=email, location=location, 
+                                 occupation=occupation, interests=interests, bio=bio, **kwargs)
+except Exception as e:
+            logger.error(f"HTTP client failed - FastAPI service may be unavailable: {e}")
+            return {
+                "success": False,
+                "error": "FastAPI service unavailable",
+                "message": "Cannot update profile - myndy-ai API service is not accessible",
+                "note": "Ensure myndy-ai FastAPI server is running on http://127.0.0.1:8000"
+            }
+            
+            # Build profile data from parameters
+            profile_data = {}
+            updated_fields = []
+            
+            if name:
+                profile_data["name"] = name
+                updated_fields.append("name")
+            if age:
+                profile_data["age"] = age
+                updated_fields.append("age")  
+            if email:
+                profile_data["email"] = email
+                updated_fields.append("email")
+            if location:
+                profile_data["location"] = location
+                updated_fields.append("location")
+            if occupation:
+                profile_data["occupation"] = occupation
+                updated_fields.append("occupation")
+            if interests:
+                if isinstance(interests, str):
+                    profile_data["interests"] = [i.strip() for i in interests.split(",")]
+                else:
+                    profile_data["interests"] = interests
+                updated_fields.append("interests")
+            if bio:
+                profile_data["biography"] = bio  # Use the correct field name from SelfProfile model
+                updated_fields.append("biography")
+            
+            # Add any additional kwargs to profile
+            for key, value in kwargs.items():
+                if value and key not in ["name", "age", "email", "location", "occupation", "interests", "bio"]:
+                    profile_data[key] = value
+                    updated_fields.append(key)
+            
+            # Check if profile exists
+            existing_profile = self_crud.get_self_profile()
+            
+            if existing_profile:
+                # Update existing profile
+                success, updated_profile = self_crud.update_self_profile(existing_profile.id, profile_data)
+                
+                if success and updated_profile:
+                    result = {
+                        "success": True,
+                        "message": f"Profile updated with {len(updated_fields)} fields",
+                        "updated_fields": updated_fields,
+                        "profile_id": updated_profile.id,
+                        "profile_name": updated_profile.name,
+                        "updated_at": datetime.now().isoformat(),
+                        "note": "Profile updated in myndy-ai memory system (direct CRUD)"
+                    }
+                else:
+                    result = {
+                        "success": False,
+                        "message": "Failed to update existing profile",
+                        "updated_fields": updated_fields,
+                        "error": "Update operation failed",
+                        "updated_at": datetime.now().isoformat()
+                    }
+            else:
+                # Create new profile - name is required
+                if not name:
+                    profile_data["name"] = "User"  # Default name if not provided
+                    updated_fields.append("name")
+                
+                # Generate an ID for the new profile
+                if "id" not in profile_data:
+                    profile_data["id"] = str(uuid.uuid4())
+                
+                success, new_profile = self_crud.create_self_profile(profile_data)
+                
+                if success and new_profile:
+                    result = {
+                        "success": True,
+                        "message": f"New profile created with {len(updated_fields)} fields",
+                        "updated_fields": updated_fields,
+                        "profile_id": new_profile.id,
+                        "profile_name": new_profile.name,
+                        "updated_at": datetime.now().isoformat(),
+                        "note": "New profile created in myndy-ai memory system (direct CRUD)"
+                    }
+                else:
+                    result = {
+                        "success": False,
+                        "message": "Failed to create new profile",
+                        "updated_fields": updated_fields,
+                        "error": "Create operation failed",
+                        "updated_at": datetime.now().isoformat()
+                    }
+                    
+        except Exception as e:
+            logger.debug(f"Myndy-ai CRUD update_self_profile failed: {e}")
+            # Fallback to simple storage simulation
+            profile_data = {}
+            updated_fields = []
+            
+            if name:
+                profile_data["name"] = name
+                updated_fields.append("name")
+            if age:
+                profile_data["age"] = age
+                updated_fields.append("age")
+            if email:
+                profile_data["email"] = email
+                updated_fields.append("email")
+            if location:
+                profile_data["location"] = location
+                updated_fields.append("location")
+            if occupation:
+                profile_data["occupation"] = occupation
+                updated_fields.append("occupation")
+            if interests:
+                if isinstance(interests, str):
+                    profile_data["interests"] = [i.strip() for i in interests.split(",")]
+                else:
+                    profile_data["interests"] = interests
+                updated_fields.append("interests")
+            if bio:
+                profile_data["bio"] = bio
+                updated_fields.append("bio")
+            
+            # Store profile data temporarily (fallback when myndy-ai system not available)
+            _temp_profile_storage.update(profile_data)
+            
+            result = {
+                "success": True,
+                "message": f"Profile updated with {len(updated_fields)} fields (fallback mode)",
+                "updated_fields": updated_fields,
+                "profile_data": profile_data,
+                "updated_at": datetime.now().isoformat(),
+                "note": "Profile stored in temporary fallback - myndy-ai system not available"
+            }
+        
+        return json.dumps(result, indent=2)
+
+    class SearchMemoryTool(BaseTool):
+    name: str = "search_memory"
+    description: str = "Search the memory system for people, organizations, and facts"
+    
+    def _run(self, query="", limit=10, entity_types=None, **kwargs) -> str:
+        """Search memory implementation - uses HTTP client or direct tools based on configuration"""
+        
+        # Check if we should use HTTP client
+        if env_config.use_http_client:
+            try:
+                from .myndy_http_client import SearchMemoryHTTPTool
+                http_tool = SearchMemoryHTTPTool()
+                return http_tool._run(query=query, limit=limit, **kwargs)
+except Exception as e:
+                logger.warning(f"HTTP client failed, falling back to direct tools: {e}")
+        
+        # Fallback to direct tools (legacy mode)
+        try:
+            from memory_storage_tools import search_memory
+            result = search_memory(query=query, limit=limit, entity_types=entity_types, **kwargs)
+except Exception as e:
+            logger.debug(f"Memory storage search_memory failed: {e}")
+            result = {
+                "success": True,
+                "query": query,
+                "results_count": 0,
+                "results": [],
+                "searched_at": __import__('datetime').datetime.now().isoformat(),
+                "note": "Search performed using direct tools (legacy mode)"
+            }
+        
+        import json
+        return json.dumps(result, indent=2)
+
+    class CreateEntityTool(BaseTool):
+    name: str = "create_entity"
+    description: str = "Create a new person or organization entity in the memory system"
+    
+    def _run(self, name="", entity_type="person", description="", organization="", job_title="", email="", phone="", **kwargs) -> str:
+        """Create entity implementation - uses HTTP client or direct tools based on configuration"""
+        
+        # Check if we should use HTTP client
+        if env_config.use_http_client:
+            try:
+                from .myndy_http_client import CreateEntityHTTPTool
+                http_tool = CreateEntityHTTPTool()
+                return http_tool._run(name=name, entity_type=entity_type, description=description,
+                                     organization=organization, job_title=job_title, email=email, phone=phone, **kwargs)
+except Exception as e:
+                logger.warning(f"HTTP client failed, falling back to direct tools: {e}")
+        
+        # Fallback to direct tools (legacy mode)
+        try:
+            from memory_storage_tools import create_entity
+            result = create_entity(name=name, entity_type=entity_type, description=description, 
+                                 organization=organization, job_title=job_title, email=email, phone=phone, **kwargs)
+            if "note" not in result:
+                result["note"] = "Entity created using direct tools (legacy mode)"
+except Exception as e:
+            logger.debug(f"Memory storage create_entity failed: {e}")
+            result = {
+                "success": False,
+                "error": f"Memory storage not available: {e}",
+                "name": name,
+                "entity_type": entity_type,
+                "note": "Failed to create entity using direct tools"
+            }
+        
+        import json
+        return json.dumps(result, indent=2)
+
+    def create_myndy_tool(name: str, description: str, myndy_tool_name: str, 
+                      tool_schema: Dict[str, Any], category: str = "general"):
+    """
+    Factory function to create a LangChain BaseTool for Myndy functionality.
+    
+    Using predefined tool classes that we know work.
+    """
+    
+    # Map of tool names to their classes
+    tool_classes = {
+        "get_current_time": GetCurrentTimeTool,
+        "get_self_profile": GetSelfProfileTool,
+        "update_self_profile": UpdateSelfProfileTool,
+        "search_memory": SearchMemoryTool,
+        "create_entity": CreateEntityTool
+    }
+    
+    # Use predefined classes for known tools
+    if myndy_tool_name in tool_classes:
+        tool_class = tool_classes[myndy_tool_name]
+        return tool_class()
+    
+    # For unknown tools, try using registry as fallback
+    # Capture variables to avoid scope issues
+    _tool_name = myndy_tool_name
+    _tool_description = description
+    
+    class GenericMyndyTool(BaseTool):
+        name: str = _tool_name
+        description: str = _tool_description
+        
+    def _run(self, **kwargs) -> str:
+            try:
+                # First try the registry
+                if myndy_registry:
+                    tool_metadata = myndy_registry.get_tool(_tool_name)
+                    if tool_metadata:
+                        result = myndy_registry.execute_tool(_tool_name, **kwargs)
+                        if isinstance(result, (dict, list)):
+                            import json
+                            return json.dumps(result, indent=2)
+                        else:
+                            return str(result)
+                
+                # If not found in registry, try to create a simple implementation for common tools
+                if _tool_name == "weather_api":
+                    return self._execute_weather_api(**kwargs)
+                elif _tool_name == "format_date":
+                    return self._execute_format_date(**kwargs) 
+                elif _tool_name == "calculate_time_difference":
+                    return self._execute_calculate_time_difference(**kwargs)
+                else:
+                    return f"Tool '{_tool_name}' is not yet implemented. Available: get_current_time, get_self_profile, update_self_profile, search_memory, create_entity, weather_api, format_date"
+                    
+except Exception as e:
+                logger.error(f"Error executing tool {_tool_name}: {e}")
+                return f"Tool execution failed: {e}"
+        
+    def _execute_weather_api(self, location="San Francisco", units="metric", forecast=False, days=1, **kwargs):
+            """Real weather API implementation using Open-Meteo (free, no API key required)"""
+            import json
+            import urllib.request
+            import urllib.parse
+            from datetime import datetime
+            
+            try:
+                # Simple geocoding using Open-Meteo's geocoding API
+                def simple_geocode(location_name):
+                    """Simple geocoding using Open-Meteo geocoding API"""
+                    try:
+                        # Clean and encode the location name
+                        location_encoded = urllib.parse.quote(location_name.strip())
+                        geocode_url = f"https://geocoding-api.open-meteo.com/v1/search?name={location_encoded}&count=1&language=en&format=json"
+                        
+                        with urllib.request.urlopen(geocode_url, timeout=10) as response:
+                            data = json.loads(response.read().decode())
+                            
+                        if data.get('results') and len(data['results']) > 0:
+                            result = data['results'][0]
+                            return result['latitude'], result['longitude'], result.get('name', location_name)
+                        return None
+except Exception as e:
+                        logger.warning(f"Geocoding error: {e}")
+                        return None
+                
+                # Try to geocode the location
+                geocode_result = simple_geocode(location)
+                if geocode_result:
+                    lat, lon, formatted_location = geocode_result
+                else:
+                    # Fallback coordinates for common cities
+                    city_coords = {
+                        "san francisco": (37.7749, -122.4194, "San Francisco, CA"),
+                        "seattle": (47.6062, -122.3321, "Seattle, WA"), 
+                        "new york": (40.7128, -74.0060, "New York, NY"),
+                        "los angeles": (34.0522, -118.2437, "Los Angeles, CA"),
+                        "chicago": (41.8781, -87.6298, "Chicago, IL"),
+                        "portland": (45.5234, -122.6762, "Portland, OR"),
+                        "london": (51.5074, -0.1278, "London, UK"),
+                        "paris": (48.8566, 2.3522, "Paris, France"),
+                        "tokyo": (35.6762, 139.6503, "Tokyo, Japan")
+                    }
+                    
+                    location_key = location.lower().strip()
+                    found = False
+                    for city, coords in city_coords.items():
+                        if city in location_key:
+                            lat, lon, formatted_location = coords
+                            found = True
+                            break
+                    
+                    if not found:
+                        # Default to Seattle if nothing matches
+                        lat, lon, formatted_location = 47.6062, -122.3321, f"{location} (using Seattle coordinates)"
+                
+                # Build Open-Meteo API URL for current weather
+                current_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&timezone=auto"
+                
+                # Add forecast parameters if requested
+                if forecast and days > 1:
+                    current_url += f"&daily=temperature_2m_max,temperature_2m_min,weather_code&forecast_days={min(days, 7)}"
+                
+                # Make API request
+                with urllib.request.urlopen(current_url, timeout=15) as response:
+                    weather_response = json.loads(response.read().decode())
+                
+                current_data = weather_response.get('current', {})
+                
+                # Get temperature and convert units
+                temp_celsius = current_data.get('temperature_2m', 0)
+                if units == "imperial":
+                    temperature = round((temp_celsius * 9/5) + 32, 1)
+                    temp_unit = "°F"
+                    wind_speed = round(current_data.get('wind_speed_10m', 0) * 0.621371, 1)  # km/h to mph
+                    wind_unit = "mph"
+                else:
+                    temperature = round(temp_celsius, 1)
+                    temp_unit = "°C" 
+                    wind_speed = round(current_data.get('wind_speed_10m', 0), 1)
+                    wind_unit = "km/h"
+                
+                # Interpret weather code to description
+                weather_code = current_data.get('weather_code', 0)
+                weather_descriptions = {
+                    0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
+                    45: "Fog", 48: "Depositing rime fog", 51: "Light drizzle", 53: "Moderate drizzle",
+                    55: "Dense drizzle", 56: "Light freezing drizzle", 57: "Dense freezing drizzle",
+                    61: "Slight rain", 63: "Moderate rain", 65: "Heavy rain", 66: "Light freezing rain",
+                    67: "Heavy freezing rain", 71: "Slight snow", 73: "Moderate snow", 75: "Heavy snow",
+                    77: "Snow grains", 80: "Slight rain showers", 81: "Moderate rain showers",
+                    82: "Violent rain showers", 85: "Slight snow showers", 86: "Heavy snow showers",
+                    95: "Thunderstorm", 96: "Thunderstorm with slight hail", 99: "Thunderstorm with heavy hail"
+                }
+                description = weather_descriptions.get(weather_code, "Unknown conditions")
+                
+                weather_data = {
+                    "location": formatted_location,
+                    "units": units,
+                    "coordinates": {"latitude": lat, "longitude": lon},
+                    "current": {
+                        "temperature": temperature,
+                        "temperature_unit": temp_unit,
+                        "feels_like": round((current_data.get('apparent_temperature', temp_celsius) * 9/5) + 32 if units == "imperial" else current_data.get('apparent_temperature', temp_celsius), 1),
+                        "description": description,
+                        "humidity": current_data.get('relative_humidity_2m', 0),
+                        "wind_speed": wind_speed,
+                        "wind_unit": wind_unit,
+                        "weather_code": weather_code
+                    },
+                    "retrieved_at": datetime.now().isoformat(),
+                    "source": "Open-Meteo API (free weather service)",
+                    "note": "Real weather data from Open-Meteo"
+                }
+                
+                # Add forecast if requested and available
+                if forecast and days > 1 and 'daily' in weather_response:
+                    daily_data = weather_response['daily']
+                    weather_data["forecast"] = []
+                    
+                    for i in range(min(days, len(daily_data.get('time', [])))):
+                        forecast_date = daily_data['time'][i]
+                        temp_max_c = daily_data.get('temperature_2m_max', [0] * days)[i]
+                        temp_min_c = daily_data.get('temperature_2m_min', [0] * days)[i]
+                        
+                        if units == "imperial":
+                            temp_max = round((temp_max_c * 9/5) + 32, 1)
+                            temp_min = round((temp_min_c * 9/5) + 32, 1)
+                        else:
+                            temp_max = round(temp_max_c, 1)
+                            temp_min = round(temp_min_c, 1)
+                        
+                        forecast_weather_code = daily_data.get('weather_code', [0] * days)[i]
+                        forecast_description = weather_descriptions.get(forecast_weather_code, "Unknown conditions")
+                        
+                        weather_data["forecast"].append({
+                            "date": forecast_date,
+                            "high": temp_max,
+                            "low": temp_min,
+                            "temperature_unit": temp_unit,
+                            "description": forecast_description,
+                            "weather_code": forecast_weather_code
+                        })
+                
+                return json.dumps(weather_data, indent=2)
+                
+            except Exception as e:
+                logger.error(f"Weather API error: {e}")
+                # Return error information instead of mock data
+                error_data = {
+                    "location": location,
+                    "units": units,
+                    "error": f"Weather data unavailable: {str(e)}",
+                    "retrieved_at": datetime.now().isoformat(),
+                    "note": "Weather API request failed - using free Open-Meteo service",
+                    "suggestion": "Check internet connection or try again later"
+                }
+                return json.dumps(error_data, indent=2)
+        
+    def _execute_format_date(self, date_string="", format_string="%Y-%m-%d", **kwargs):
+            """Simple date formatting implementation"""
+            import json
+            from datetime import datetime
+            
+            try:
+                if not date_string:
+                    date_obj = datetime.now()
+                else:
+                    # Try to parse the date string
+                    try:
+                        date_obj = datetime.fromisoformat(date_string.replace('Z', '+00:00'))
+                    except:
+                        date_obj = datetime.strptime(date_string, "%Y-%m-%d")
+                
+                formatted_date = date_obj.strftime(format_string)
+                
+                return json.dumps({
+                    "original_date": date_string or "current_time",
+                    "format_string": format_string,
+                    "formatted_date": formatted_date,
+                    "timestamp": date_obj.timestamp()
+                }, indent=2)
+                
+except Exception as e:
+                return json.dumps({
+                    "error": f"Date formatting failed: {e}",
+                    "input": date_string,
+                    "format": format_string
+                }, indent=2)
+        
+    def _execute_calculate_time_difference(self, start_time="", end_time="", unit="hours", **kwargs):
+            """Simple time difference calculation"""
+            import json
+            from datetime import datetime
+            
+            try:
+                if not start_time:
+                    start_time = datetime.now().isoformat()
+                if not end_time:
+                    end_time = datetime.now().isoformat()
+                
+                start_dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+                end_dt = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
+                
+                diff = end_dt - start_dt
+                
+                if unit == "seconds":
+                    result = diff.total_seconds()
+                elif unit == "minutes":
+                    result = diff.total_seconds() / 60
+                elif unit == "hours":
+                    result = diff.total_seconds() / 3600
+                elif unit == "days":
+                    result = diff.days
+                else:
+                    result = diff.total_seconds() / 3600  # default to hours
+                
+                return json.dumps({
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "difference": result,
+                    "unit": unit,
+                    "calculated_at": datetime.now().isoformat()
+                }, indent=2)
+                
+except Exception as e:
+                return json.dumps({
+                    "error": f"Time calculation failed: {e}",
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "unit": unit
+                }, indent=2)
+    
+    return GenericMyndyTool()
+        
+    class MyndyToolLoader:
+    """
+    Loads Myndy tools and converts them to CrewAI-compatible format.
+    
+    This class handles the conversion between Myndy's tool format and CrewAI's
+    expected tool interface, providing filtering and categorization capabilities.
+    """
+    
+    def __init__(self, myndy_tool_repo_path: str = None):
+        """
+        Initialize the tool loader.
+        
+        Args:
+            myndy_tool_repo_path: Path to the Myndy tool repository
+        """
+        if myndy_tool_repo_path is None:
+            # Use dynamic path resolution like we did above
+            myndy_tool_repo_path = str(MYNDY_PATH / "tool_repository")
+        self.tool_repo_path = Path(myndy_tool_repo_path)
+        self._tool_schemas: Dict[str, Dict[str, Any]] = {}
+        self._loaded_tools: Dict[str, BaseTool] = {}
+        self._load_tool_schemas()
+    
+    def _load_tool_schemas(self) -> None:
+        """Load all tool schemas from the Myndy tool repository."""
+        if not self.tool_repo_path.exists():
+            logger.warning(f"Tool repository path does not exist: {self.tool_repo_path}")
+            return
+            
+        for schema_file in self.tool_repo_path.glob("*.json"):
+            try:
+                with open(schema_file, 'r', encoding='utf-8') as f:
+                    schema = json.load(f)
+                    
+                tool_name = schema.get('name') or schema.get('function', {}).get('name')
+                if tool_name:
+                    self._tool_schemas[tool_name] = schema
+                    logger.debug(f"Loaded schema for tool: {tool_name}")
+                    
+            except (json.JSONDecodeError, IOError) as e:
+                logger.warning(f"Failed to load schema from {schema_file}: {e}")
+    
+    def get_tool_categories(self) -> List[str]:
+        """
+        Get all available tool categories.
+        
+        Returns:
+            List of unique tool categories
+        """
+        categories = set()
+        
+        # Get categories from myndy registry if available
+        if myndy_registry:
+            categories.update(myndy_registry.get_all_categories())
+        
+        # Infer categories from tool names (fallback)
+        for tool_name in self._tool_schemas.keys():
+            if '_' in tool_name:
+                category = tool_name.split('_')[0]
+                categories.add(category)
+        
+        return list(categories)
+    
+    def get_tools_by_category(self, category: str) -> List[str]:
+        """
+        Get tool names by category.
+        
+        Args:
+            category: Category to filter by
+            
+        Returns:
+            List of tool names in the specified category
+        """
+        tool_names = []
+        
+        if myndy_registry:
+            # Get tools from registry
+            registry_tools = myndy_registry.get_tools_by_category(category)
+            tool_names.extend([tool.name for tool in registry_tools])
+        
+        # Also check tool repository schemas for fallback/additional tools
+        repo_tools = [name for name in self._tool_schemas.keys() 
+                     if name.startswith(f"{category}_")]
+        tool_names.extend(repo_tools)
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_tools = []
+        for name in tool_names:
+            if name not in seen:
+                seen.add(name)
+                unique_tools.append(name)
+        
+        return unique_tools
+    
+    def create_crewai_tool(self, tool_name: str) -> Optional[BaseTool]:
+        """
+        Create a CrewAI-compatible tool from a Myndy tool.
+        
+        Args:
+            tool_name: Name of the Myndy tool to convert
+            
+        Returns:
+            BaseTool instance or None if tool not found
+        """
+        if tool_name in self._loaded_tools:
+            return self._loaded_tools[tool_name]
+        
+        # Get schema from repository first
+        schema = self._tool_schemas.get(tool_name)
+        tool_description = f"Myndy tool: {tool_name}"
+        category = "general"
+        
+        # Check if tool exists in myndy registry
+        if myndy_registry:
+            tool_metadata = myndy_registry.get_tool(tool_name)
+            if tool_metadata:
+                category = tool_metadata.category
+                tool_description = tool_metadata.description or tool_description
+                
+                # For registry-only tools (like monitoring tools), create a minimal schema
+                if not schema:
+                    schema = {
+                        "name": tool_name,
+                        "function": {
+                            "name": tool_name,
+                            "description": tool_description,
+                            "parameters": {"type": "object", "properties": {}}
+                        }
+                    }
+        
+        # Check if tool exists as a predefined class even without schema
+        predefined_tool_classes = {
+            "get_current_time": GetCurrentTimeTool,
+            "get_self_profile": GetSelfProfileTool,
+            "update_self_profile": UpdateSelfProfileTool,
+            "search_memory": SearchMemoryTool,
+            "create_entity": CreateEntityTool
+        }
+        
+        if tool_name in predefined_tool_classes:
+            # Create tool directly from predefined class
+            tool_class = predefined_tool_classes[tool_name]
+            tool_instance = tool_class()
+            self._loaded_tools[tool_name] = tool_instance
+            logger.info(f"Created predefined tool: {tool_name}")
+            return tool_instance
+        
+        if not schema:
+            logger.warning(f"Tool not found in repository or registry: {tool_name}")
+            return None
+        
+        # Extract tool information from schema
+        function_def = schema.get('function', {})
+        if function_def.get('description'):
+            tool_description = function_def.get('description')
+        
+        # Create the CrewAI tool
+        try:
+            # Enhance description with detailed instructions for CrewAI agents
+            enhanced_description = self._create_enhanced_tool_description(tool_name, tool_description, schema)
+            
+            crewai_tool = create_myndy_tool(
+                name=tool_name,
+                description=enhanced_description,
+                myndy_tool_name=tool_name,
+                tool_schema=schema,
+                category=category
+            )
+            
+            self._loaded_tools[tool_name] = crewai_tool
+            logger.info(f"Created CrewAI tool for: {tool_name} (category: {category})")
+            return crewai_tool
+            
+except Exception as e:
+            logger.error(f"Failed to create CrewAI tool for {tool_name}: {e}")
+            return None
+    
+    def _create_enhanced_tool_description(self, tool_name: str, base_description: str, schema: Dict[str, Any]) -> str:
+        """
+        Create enhanced tool descriptions with detailed instructions for CrewAI agents.
+        
+        Args:
+            tool_name: Name of the tool
+            base_description: Base description from the tool schema
+            schema: Full tool schema
+            
+        Returns:
+            Enhanced description with usage instructions
+        """
+        # Tool-specific enhanced descriptions with proper usage examples
+        enhanced_descriptions = {
+            "get_current_time": "Get the current time in any timezone. Use timezone names like 'America/Los_Angeles', 'Europe/London', 'UTC', etc. Example: Use 'UTC' for universal time or 'America/New_York' for Eastern time.",
+            
+            "weather_api": "Get current weather and forecast for any location using OpenWeatherMap API. Use city names like 'San Francisco' or 'London, UK'. For units: 'metric' (Celsius), 'imperial' (Fahrenheit), 'standard' (Kelvin). Set forecast=true for multi-day forecasts.",
+            
+            "local_weather": "Get weather from local data files. Requires a location name and data directory path. Use this for cached/local weather data when API is not needed.",
+            
+            "format_weather": "Convert weather data into human-readable text. Pass weather data as JSON object and specify format like 'brief', 'detailed', or 'forecast'.",
+            
+            "calendar_query": "Search calendar events and appointments. Use natural language queries like 'meetings today', 'appointments this week', or specific dates like '2024-01-15'.",
+            
+            "analyze_text": "Analyze text content for various properties like sentiment, topics, entities, language, etc. Pass the text content and specify analysis type.",
+            
+            "analyze_sentiment": "Determine emotional sentiment of text (positive, negative, neutral). Returns confidence scores and detailed sentiment analysis.",
+            
+            "extract_conversation_entities": "Extract people, places, organizations, emails, phone numbers from conversation text. Returns structured entity data with confidence scores.",
+            
+            "extract_from_conversation_history": "Search and extract specific information from stored conversation history. Use natural language queries about past conversations.",
+            
+            "infer_conversation_intent": "Determine the intent/purpose of a conversation or message. Returns intent categories and confidence scores.",
+            
+            "health_query": "Query health and fitness data. Use queries like 'steps today', 'sleep last night', 'heart rate this week', etc.",
+            
+            "finance_tool": "Perform financial calculations and analysis. Can handle budgeting, expense tracking, financial planning calculations.",
+            
+            "search_transactions": "Search financial transaction records. Use queries like 'groceries last month', 'expenses over $100', 'transactions at Starbucks'."
+        }
+        
+        # Get enhanced description or use base description
+        enhanced_desc = enhanced_descriptions.get(tool_name, base_description)
+        
+        # Clean up any template-style descriptions that might come from base_description
+        if "Tool Name:" in str(base_description):
+            # The base description has template formatting, use our enhanced version
+            enhanced_desc = enhanced_descriptions.get(tool_name, f"Myndy tool: {tool_name}")
+        elif enhanced_desc not in enhanced_descriptions.values():
+            # This is not one of our enhanced descriptions, might need cleaning
+            enhanced_desc = enhanced_descriptions.get(tool_name, base_description)
+        
+        # Add parameter information with better formatting
+        if schema and 'function' in schema:
+            params = schema['function'].get('parameters', {}).get('properties', {})
+            required_params = schema['function'].get('parameters', {}).get('required', [])
+            
+            if params:
+                param_lines = []
+                for name, info in params.items():
+                    param_type = info.get('type', 'string')
+                    param_desc = info.get('description', f'{name} parameter')
+                    required_marker = " (required)" if name in required_params else " (optional)"
+                    
+                    # Improve generic parameter descriptions
+                    if param_desc.startswith('Parameter '):
+                        param_desc = self._improve_parameter_description(tool_name, name, param_type)
+                    
+                    param_lines.append(f"  • {name} ({param_type}){required_marker}: {param_desc}")
+                
+                param_text = "\\n".join(param_lines)
+                enhanced_desc = f"{enhanced_desc}\\n\\nParameters:\\n{param_text}"
+            else:
+                enhanced_desc = f"{enhanced_desc}\\n\\nNo parameters required."
+        
+        # Add examples if available
+        if schema and 'examples' in schema:
+            examples = schema['examples']
+            if examples:
+                example_text = "\\n\\nExample usage:"
+                for i, example in enumerate(examples[:2]):  # Limit to 2 examples
+                    if 'parameters' in example:
+                        example_params = ", ".join([f"{k}='{v}'" for k, v in example['parameters'].items()])
+                        example_text += f"\\n  {i+1}. {tool_name}({example_params})"
+                enhanced_desc += example_text
+        
+        return enhanced_desc
+    
+    def _improve_parameter_description(self, tool_name: str, param_name: str, param_type: str) -> str:
+        """Improve generic parameter descriptions with tool-specific guidance."""
+        
+        # Tool and parameter specific improvements
+        improvements = {
+            ("get_current_time", "timezone"): "Timezone identifier like 'UTC', 'America/Los_Angeles', 'Europe/London'",
+            ("weather_api", "location"): "City name or 'City, Country' format like 'San Francisco' or 'London, UK'",
+            ("weather_api", "units"): "Temperature units: 'metric' (°C), 'imperial' (°F), or 'standard' (K)",
+            ("weather_api", "forecast"): "Set to true to include multi-day weather forecast",
+            ("weather_api", "days"): "Number of forecast days (1-5)",
+            ("format_date", "date_string"): "Date to format in ISO format like '2024-01-15' or '2024-01-15T10:30:00'",
+            ("format_date", "format_string"): "Output format like '%Y-%m-%d', '%B %d, %Y', or '%m/%d/%Y'",
+            ("calendar_query", "query"): "Natural language query like 'meetings today' or 'appointments next week'",
+            ("analyze_text", "text"): "Text content to analyze",
+            ("analyze_sentiment", "text"): "Text content to analyze for emotional sentiment",
+        }
+        
+        key = (tool_name, param_name)
+        if key in improvements:
+            return improvements[key]
+        
+        # Generic improvements based on parameter name patterns
+        if param_name in ['text', 'content', 'message']:
+            return "Text content to process"
+        elif param_name in ['query', 'search_query']:
+            return "Search query or natural language question"
+        elif param_name in ['location', 'place']:
+            return "Location name or address"
+        elif param_name in ['date', 'timestamp']:
+            return "Date in ISO format (YYYY-MM-DD) or timestamp"
+        elif param_name in ['format', 'output_format']:
+            return "Output format specification"
+        elif param_name in ['limit', 'max_results']:
+            return "Maximum number of results to return"
+        else:
+            return f"{param_name.replace('_', ' ').title()} parameter"
+    
+    def get_tools_for_agent(self, agent_role: str) -> List[BaseTool]:
+        """
+        Get appropriate tools for a specific agent role.
+        
+        Args:
+            agent_role: The role of the agent (e.g., "memory_librarian", "research_specialist")
+            
+        Returns:
+            List of BaseTool instances appropriate for the agent
+        """
+        # Define tool categories for each agent role - expanded to include more tools
+        role_to_categories = {
+            "memory_librarian": ["memory", "conversation", "knowledge", "entity", "profile", "status", "extract", "infer", "analytics"],
+            "research_specialist": ["search", "verification", "document", "text", "analysis", "web", "analyze", "summarize", "detect", "extract", "convert", "process", "analytics"],
+            "personal_assistant": ["calendar", "email", "contact", "project", "status", "profile", "schedule", "time", "format", "calculate", "get", "unix", "weather", "local", "analytics"],
+            "health_analyst": ["health", "activity", "sleep", "fitness", "wellness", "status", "analytics"],
+            "finance_tracker": ["finance", "transaction", "expense", "budget", "cost", "spending", "get", "analytics"],
+            "shadow_agent": ["memory", "conversation", "knowledge", "entity", "profile", "status", "extract", "infer", "analytics", "behavior", "pattern", "context", "sentiment", "analysis"]
+        }
+        
+        categories = role_to_categories.get(agent_role, [])
+        tools = []
+        
+        # Add essential tools directly for specific agent roles
+        essential_tools = {
+            "personal_assistant": ["get_current_time", "local_weather", "format_weather", "weather_api", "calendar_query", "get_self_profile", "search_memory", "get_current_status"],
+            "memory_librarian": ["extract_conversation_entities", "infer_conversation_intent", "extract_from_conversation_history", "add_fact", "add_preference", "create_entity", "update_status", "search_memory", "get_current_status", "get_self_profile"],
+            "research_specialist": ["analyze_text", "analyze_sentiment", "summarize_text", "detect_language"],
+            "health_analyst": ["health_query", "health_summary_simple"],
+            "finance_tracker": ["get_recent_expenses", "get_spending_summary", "search_transactions"],
+            "shadow_agent": ["extract_conversation_entities", "infer_conversation_intent", "analyze_sentiment", "analyze_text", "search_memory", "get_current_status", "get_self_profile", "add_fact", "add_preference", "update_status", "create_entity", "store_conversation_analysis"]
+        }
+        
+        # First, add essential tools for this agent
+        if agent_role in essential_tools:
+            for tool_name in essential_tools[agent_role]:
+                tool = self.create_crewai_tool(tool_name)
+                if tool:
+                    tools.append(tool)
+                    logger.debug(f"Added essential tool {tool_name} for {agent_role}")
+        
+        # Then add category-based tools
+        for category in categories:
+            category_tools = self.get_tools_by_category(category)
+            for tool_name in category_tools:
+                # Avoid duplicates
+                if not any(t.name == tool_name for t in tools):
+                    tool = self.create_crewai_tool(tool_name)
+                    if tool:
+                        tools.append(tool)
+        
+        # If still no tools found, try pattern matching on tool names
+        if not tools:
+            for tool_name in self._tool_schemas.keys():
+                for category in categories:
+                    if category in tool_name.lower():
+                        tool = self.create_crewai_tool(tool_name)
+                        if tool:
+                            tools.append(tool)
+                        break
+        
+        logger.info(f"Loaded {len(tools)} tools for agent role: {agent_role}")
+        return tools
+    
+    def get_all_tools(self) -> List[BaseTool]:
+        """
+        Get all available Myndy tools as CrewAI tools.
+        
+        Returns:
+            List of all BaseTool instances
+        """
+        tools = []
+        for tool_name in self._tool_schemas.keys():
+            tool = self.create_crewai_tool(tool_name)
+            if tool:
+                tools.append(tool)
+        
+        logger.info(f"Loaded {len(tools)} total tools")
+        return tools
+    
+    def get_tool_info(self) -> Dict[str, Any]:
+        """
+        Get comprehensive information about available tools.
+        
+        Returns:
+            Dictionary with tool statistics and categorization
+        """
+        info = {
+            "total_tools": len(self._tool_schemas),
+            "categories": self.get_tool_categories(),
+            "tools_by_category": {},
+            "registry_available": myndy_registry is not None
+        }
+        
+        for category in info["categories"]:
+            tools = self.get_tools_by_category(category)
+            info["tools_by_category"][category] = {
+                "count": len(tools),
+                "tools": tools
+            }
+        
+        return info
+
+
+    # Global tool loader instance
+    _tool_loader = None
+
+    def get_tool_loader() -> MyndyToolLoader:
+    """
+    Get the global tool loader instance.
+    
+    Returns:
+        MyndyToolLoader instance
+    """
+    global _tool_loader
+    if _tool_loader is None:
+        _tool_loader = MyndyToolLoader()
+    return _tool_loader
+
+
+    def load_myndy_tools_for_agent(agent_role: str) -> List[BaseTool]:
+    """
+    Convenience function to load tools for a specific agent role.
+    
+    Args:
+        agent_role: The role of the agent
+        
+    Returns:
+        List of appropriate BaseTool instances
+    """
+    loader = get_tool_loader()
+    return loader.get_tools_for_agent(agent_role)
+
+
+    def load_all_myndy_tools() -> List[BaseTool]:
+    """
+    Convenience function to load all available Myndy tools.
+    
+    Returns:
+        List of all BaseTool instances
+    """
+    loader = get_tool_loader()
+    return loader.get_all_tools()
+
+
+    if __name__ == "__main__":
+    # Test the tool loader
+    loader = MyndyToolLoader()
+    info = loader.get_tool_info()
+    
+    print("Myndy Tool Loader Test")
+    print("=" * 40)
+    print(f"Total tools loaded: {info['total_tools']}")
+    print(f"Registry available: {info['registry_available']}")
+    print(f"Categories found: {len(info['categories'])}")
+    
+    for category, details in info["tools_by_category"].items():
+        print(f"  {category}: {details['count']} tools")
+    
+    # Test creating a tool
+    if info['total_tools'] > 0:
+        first_tool_name = list(loader._tool_schemas.keys())[0]
+        test_tool = loader.create_crewai_tool(first_tool_name)
+        if test_tool:
+            print(f"\nSuccessfully created test tool: {test_tool.name}")
+            print(f"Description: {test_tool.description}")
+        else:
+            print(f"\nFailed to create test tool: {first_tool_name}")
+
+
+    def get_agent_tools(agent_role: str) -> List[BaseTool]:
+    """
+    Get tools for a specific agent role.
+    
+    Args:
+        agent_role: The role of the agent (e.g., 'context_manager', 'memory_librarian', etc.)
+        
+    Returns:
+        List of CrewAI tools for the agent
+    """
+    try:
+        # Initialize the tool loader
+        loader = MyndyToolLoader()
+        
+        # Define tool sets for different agent roles - only using confirmed available tools
+        role_tool_mappings = {
+            "context_manager": [
+                # Only basic tools for context analysis - avoid complex unimplemented tools
+                "get_current_time",
+                "format_date"
+            ],
+            "memory_librarian": [
+                # Memory and contact management tools
+                "extract_conversation_entities",
+                "extract_from_conversation_history",  # Available in repository
+                "infer_conversation_intent",         # Available in repository
+                "search_conversation_memory", 
+                "get_conversation_summary",
+                "store_conversation_analysis",
+                "start_agent_conversation",
+                "add_conversation_message",
+                # Memory storage tools for saving information (NOW AVAILABLE)
+                "add_fact",
+                "add_preference", 
+                "create_entity",
+                "update_status",
+                "search_memory",
+                "get_current_status",
+                "get_self_profile"
+            ],
+            "personal_assistant": [
+                # Time, weather, and general assistance tools - confirmed available
+                "get_current_time",
+                "local_weather",
+                "format_weather", 
+                "weather_api",
+                "format_date",
+                "calculate_time_difference",
+                "calendar_query",
+                "unix_timestamp"
+            ],
+            "research_specialist": [
+                # Research and analysis tools - enhanced with document processing
+                "analyze_text",
+                "analyze_sentiment",
+                "summarize_text",
+                "detect_language",
+                "extract_document_text",
+                "extract_document_tables",       # Available in repository
+                "summarize_document",
+                "search_document",
+                "convert_document",
+                "process_document",
+                "extract_entities",
+                "extract_keywords"
+            ],
+            "health_analyst": [
+                # Health and wellness tools - enhanced capabilities
+                "health_query",
+                "health_query_simple",
+                "health_summary_simple"
+            ],
+            "finance_tracker": [
+                # Financial tools - enhanced with transaction analysis
+                "finance_tool",
+                "get_recent_expenses",
+                "get_spending_summary",
+                "get_transaction",
+                "search_transactions"
+            ],
+            "shadow_agent": [
+                # Behavioral analysis and pattern detection tools
+                "extract_conversation_entities",
+                "infer_conversation_intent", 
+                "analyze_sentiment",
+                "analyze_text",
+                # Context synthesis and memory tools (NOW AVAILABLE)
+                "search_memory",
+                "get_current_status",
+                "get_self_profile",
+                "extract_from_conversation_history",
+                # Pattern detection and learning tools
+                "get_status_history",
+                "reflect_on_memory",
+                "add_fact",
+                "add_preference",
+                # Silent monitoring and storage tools (NOW AVAILABLE)
+                "update_status",
+                "create_entity",
+                "store_conversation_analysis"
+            ]
+        }
+        
+        # Get tool names for the agent role
+        tool_names = role_tool_mappings.get(agent_role, [])
+        
+        # Create CrewAI tools
+        tools = []
+        for tool_name in tool_names:
+            try:
+                tool = loader.create_crewai_tool(tool_name)
+                if tool:
+                    tools.append(tool)
+                    logger.debug(f"Added tool {tool_name} for {agent_role}")
+                else:
+                    logger.warning(f"Could not create tool {tool_name} for {agent_role}")
+except Exception as e:
+                logger.warning(f"Error creating tool {tool_name} for {agent_role}: {e}")
+        
+        logger.info(f"Loaded {len(tools)} tools for agent role: {agent_role}")
+        return tools
+        
+    except Exception as e:
+        logger.error(f"Error loading tools for agent {agent_role}: {e}")
+        return []

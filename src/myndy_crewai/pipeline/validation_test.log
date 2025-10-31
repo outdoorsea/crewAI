@@ -1,0 +1,84 @@
+INFO:agents.tools.core.tool_repository:Loaded tool description for extract_conversation_entities in function format
+INFO:agents.tools.core.tool_repository:Loaded tool description for infer_conversation_intent in function format
+INFO:agents.tools.core.tool_repository:Loaded tool description for extract_from_conversation_history in function format
+INFO:agents.tools.core.tool_repository:Loaded tool description for infer_conversation_intent in ollama format
+INFO:agents.tools.core.tool_repository:Loaded tool description for extract_from_conversation_history in ollama format
+INFO:agents.tools.core.tool_repository:Loaded tool description for extract_conversation_entities in ollama format
+INFO:health:Legacy health imports not available, using local implementation
+INFO:qdrant.core.client:Using gRPC for Qdrant communication (port 6334)
+INFO:qdrant.core.client:Attempting to connect to Qdrant with gRPC without SSL
+INFO:qdrant.core.client:Successfully connected to Qdrant server
+INFO:qdrant.core.client:Initialized Qdrant client manager with batch size 100
+INFO:qdrant.core.embedding_manager:Loading embedding model: all-mpnet-base-v2
+INFO:sentence_transformers.SentenceTransformer:Use pytorch device_name: mps
+INFO:sentence_transformers.SentenceTransformer:Load pretrained SentenceTransformer: all-mpnet-base-v2
+INFO:qdrant.core.embedding_manager:Successfully loaded embedding model: all-mpnet-base-v2
+INFO:qdrant.core.embedding_manager:Model vector size: 768
+INFO:qdrant.collections.memory:memory_groups collection already exists
+INFO:qdrant.collections.memory:Ensuring memory_groups collection is properly registered in cache
+INFO:qdrant.collections.memory:memory_relationships collection already exists
+INFO:qdrant.collections.memory:Ensuring memory_relationships collection is properly registered in cache
+INFO:qdrant.collections.memory:Core memory collections initialized: memory_contacts=True, memory_people=True, memory_events=True, memory_places=True
+INFO:qdrant.collections.memory:Additional collections initialized: memory_tasks=True, memory_journals=True, memory_groups=True, memory_relationships=True, health_metrics=True
+INFO:qdrant.collections.memory:Initialized MemoryManager for sections: memory=memory, contact=contact
+INFO:qdrant.core.document_store:Initialized DocumentStore for knowledge in section knowledge (collection: knowledge_repository)
+INFO:qdrant.collections.knowledge:Knowledge collections initialized: knowledge=True
+INFO:qdrant.collections.knowledge:Initialized KnowledgeManager for section: knowledge
+INFO:qdrant.core.document_store:Initialized DocumentStore for email in section email (collection: emails)
+INFO:qdrant.collections.email:Email collections initialized: email=True
+INFO:qdrant.collections.email:Initialized EmailManager for section: email
+INFO:qdrant.core.document_store:Initialized DocumentStore for project in section memory (collection: memory_projects)
+INFO:qdrant.collections.project:Project collections initialized: project=True
+INFO:qdrant.collections.project:Initialized ProjectManager for section: memory
+INFO:qdrant.collections.health.health_manager:Successfully imported HealthMetric model
+INFO:qdrant.collections.health.health_manager:Health collections initialized: metric=True, activity=True, sleep=True
+INFO:qdrant.collections.health.health_manager:Initialized HealthManager for section: health
+INFO:qdrant.core.document_store:Initialized DocumentStore for transaction in section finance (collection: finance_transactions)
+INFO:qdrant.collections.finance:Finance collections initialized: transaction=True
+INFO:qdrant.collections.finance:Initialized FinanceManager for section: finance
+INFO:health.health_manager:Health metrics collection already exists
+INFO:agents.tools.builtin.health_provider:Initializing health tools
+INFO:agents.tools.builtin.health_provider:Registered HealthModuleTool
+INFO:agents.tools.builtin.health_provider:Registered 1 health tools
+INFO:agents.tools.builtin:Successfully registered health tools from health_provider
+INFO:agents.tools.builtin.finance_provider:Initializing finance tools
+INFO:agents.tools.builtin.finance_provider:Registered FinanceTool
+INFO:agents.tools.builtin.finance_provider:Registered tool get_transaction
+INFO:agents.tools.builtin.finance_provider:Registered tool search_transactions
+INFO:agents.tools.builtin.finance_provider:Registered tool get_spending_summary
+INFO:agents.tools.builtin.finance_provider:Registered tool get_recent_expenses
+INFO:agents.tools.builtin.finance_provider:Registered 5 finance tools
+INFO:agents.tools.builtin:Successfully registered finance tools from finance_provider
+INFO:agents.tools.builtin.calendar_provider:Initializing calendar tool provider...
+INFO:calendar_events.api.calendar_tool:Initializing stub CalendarTool
+INFO:agents.tools.builtin.calendar_provider:Calendar tool provider initialized with 1 tools
+INFO:agents.tools.builtin.calendar_provider:Initializing calendar tool provider...
+INFO:calendar_events.api.calendar_tool:Initializing stub CalendarTool
+INFO:agents.tools.builtin.calendar_provider:Calendar tool provider initialized with 1 tools
+INFO:agents.tools.builtin:Successfully registered calendar tools from calendar_provider
+/Users/jeremy/myndy/venv/lib/python3.13/site-packages/langchain/llms/__init__.py:548: LangChainDeprecationWarning: Importing LLMs from langchain is deprecated. Importing from langchain will no longer be supported as of langchain==0.2.0. Please import from langchain-community instead:
+
+`from langchain_community.llms import Ollama`.
+
+To install langchain-community run `pip install -U langchain-community`.
+  warnings.warn(
+/Users/jeremy/myndy/venv/lib/python3.13/site-packages/langchain/chat_models/__init__.py:31: LangChainDeprecationWarning: Importing chat models from langchain is deprecated. Importing from langchain will no longer be supported as of langchain==0.2.0. Please import from langchain-community instead:
+
+`from langchain_community.chat_models import ChatOllama`.
+
+To install langchain-community run `pip install -U langchain-community`.
+  warnings.warn(
+INFO:crewai_memex_pipeline:CrewAI and Myndy components imported successfully
+INFO:crewai_memex_pipeline:CrewAI-Myndy Pipeline 1.0.0 initialized
+INFO:__main__:Starting CrewAI-Myndy Pipeline Server
+INFO:__main__:🚀 Features: Intelligent Agent Routing + Contact Management + Memory Search
+INFO:__main__:🤖 Available agents: 5 specialized agents + auto-routing
+INFO:__main__:🌐 Server starting on http://localhost:9099
+INFO:__main__:📋 Add this URL to OpenWebUI Pipelines: http://localhost:9099
+INFO:     Started server process [42564]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+ERROR:    [Errno 48] error while attempting to bind on address ('0.0.0.0', 9099): [errno 48] address already in use
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+Warning: Could not import myndy registry: No module named 'tools.text_analysis'

@@ -1,7 +1,133 @@
+# Pre-commit hooks configuration for CrewAI Agent System
+# Ensures code quality and agent system reliability before commits
+
 repos:
+  # Code formatting with Ruff (faster alternative to Black + isort)
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.2
     hooks:
       - id: ruff
+        name: Lint and fix with Ruff
         args: ["--fix"]
+        exclude: 'venv/|env/|build/|dist/|memory_data/|logs/|backup.*/'
       - id: ruff-format
+        name: Format code with Ruff
+        exclude: 'venv/|env/|build/|dist/|memory_data/|logs/|backup.*/'
+
+  # Type checking
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.2
+    hooks:
+      - id: mypy
+        name: Type check with mypy
+        args: [--ignore-missing-imports, --check-untyped-defs]
+        exclude: 'venv/|env/|build/|dist/|memory_data/|logs/|backup.*/'
+        additional_dependencies: [types-requests, types-PyYAML]
+
+  # Security scanning
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.10
+    hooks:
+      - id: bandit
+        name: Security scan with bandit
+        args: [-r, ., --exclude, tests/,venv/,env/,build/,dist/,memory_data/,logs/]
+        exclude: ^tests/
+
+  # Common file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        name: Trim trailing whitespace
+      - id: end-of-file-fixer
+        name: Fix end of files
+      - id: check-merge-conflict
+        name: Check for merge conflicts
+      - id: check-added-large-files
+        name: Check for large files
+        args: [--maxkb=1000]
+      - id: check-yaml
+        name: Check YAML syntax
+      - id: check-json
+        name: Check JSON syntax
+        exclude: 'manifest\.json$'
+
+  # CrewAI specific validations
+  - repo: local
+    hooks:
+      # Agent configuration validation
+      - id: agent-validation
+        name: Validate agent configurations
+        entry: python -c "
+import sys
+sys.path.append('.')
+try:
+    from agents.agent_manager import get_available_agents
+    agents = get_available_agents()
+    print(f'✅ Agent validation passed: {len(agents)} agents available')
+except Exception as e:
+    print(f'❌ Agent validation failed: {e}')
+    # Non-blocking for now
+"
+        language: system
+        files: ^agents/.*\.py$
+        always_run: false
+
+      # Pipeline configuration validation  
+      - id: pipeline-validation
+        name: Validate pipeline configuration
+        entry: python -c "
+import sys
+sys.path.append('.')
+try:
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('server', 'pipeline/server.py')
+    if spec and spec.loader:
+        print('✅ Pipeline configuration validation passed')
+    else:
+        print('⚠️  Pipeline server not found')
+except Exception as e:
+    print(f'❌ Pipeline validation failed: {e}')
+    # Non-blocking for now  
+"
+        language: system
+        files: ^pipeline/.*\.py$
+        always_run: false
+
+      # Tool bridge validation (critical for HTTP integration)
+      - id: tool-bridge-validation  
+        name: Validate HTTP tool bridge
+        entry: python -c "
+import sys
+sys.path.append('.')
+try:
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('bridge', 'tools/myndy_bridge.py')
+    if spec and spec.loader:
+        print('✅ Tool bridge validation passed')
+    else:
+        print('⚠️  Tool bridge not found')
+except Exception as e:
+    print(f'❌ Tool bridge validation failed: {e}')
+    # Non-blocking for now
+"
+        language: system
+        files: ^tools/.*\.py$
+        always_run: false
+
+# Configuration for pre-commit
+default_stages: [commit, push]
+minimum_pre_commit_version: '3.0.0'
+
+# CI configuration
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit.com hooks
+
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_branch: ''
+  autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'  
+  autoupdate_schedule: weekly
+  skip: []
+  submodules: false

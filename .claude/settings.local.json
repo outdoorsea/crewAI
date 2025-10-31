@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rg:*)",
+      "Bash(pip install:*)",
+      "Bash(python test_ollama_integration.py:*)",
+      "Bash(python test_crewai_quick.py:*)",
+      "Bash(mv:*)",
+      "Bash(python:*)",
+      "Bash(chmod:*)",
+      "Bash(echo $SHELL)",
+      "Bash(pkill:*)",
+      "Bash(true)",
+      "Bash(curl:*)",
+      "Bash(source:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(grep:*)",
+      "Bash(lsof:*)",
+      "Bash(kill:*)",
+      "Bash(mkdir:*)",
+      "WebSearch",
+      "WebFetch(domain:www.librechat.ai)",
+      "Bash(./run-repomix-all.sh:*)",
+      "Read(//Users/jeremy/myndy-core/**)",
+      "Bash(pip show:*)",
+      "Bash(python3:*)",
+      "Bash(cat:*)",
+      "Read(//private/tmp/**)",
+      "Bash(./terminal_test_suite.sh:*)"
+    ],
+    "deny": []
+  }
+}

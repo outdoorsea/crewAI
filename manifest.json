@@ -1,0 +1,54 @@
+{
+  "id": "myndy_ai",
+  "name": "Myndy AI",
+  "version": "1.0.0",
+  "type": "manifold",
+  "description": "Myndy AI - Your personal intelligent assistant with conversation-driven learning and 5 specialized agents",
+  "author": "Jeremy",
+  "license": "MIT",
+  "requirements": ["fastapi", "uvicorn", "pydantic"],
+  "models": [
+    {
+      "id": "auto",
+      "name": "🧠 Myndy AI v1.0",
+      "description": "Intelligent routing to the best agent for your request"
+    },
+    {
+      "id": "memory_librarian",
+      "name": "🎯 Memory Librarian",
+      "description": "Manages contacts, knowledge, and personal information"
+    },
+    {
+      "id": "research_specialist", 
+      "name": "🎯 Research Specialist",
+      "description": "Conducts research, analysis, and information gathering"
+    },
+    {
+      "id": "personal_assistant",
+      "name": "🎯 Personal Assistant", 
+      "description": "Handles scheduling, weather, time, and productivity"
+    },
+    {
+      "id": "health_analyst",
+      "name": "🎯 Health Analyst",
+      "description": "Analyzes health data and provides wellness insights"
+    },
+    {
+      "id": "finance_tracker",
+      "name": "🎯 Finance Tracker",
+      "description": "Tracks expenses, budgets, and financial planning"
+    }
+  ],
+  "endpoints": {
+    "models": "/models",
+    "chat": "/v1/chat/completions",
+    "health": "/"
+  },
+  "features": [
+    "intelligent_routing",
+    "multi_agent_system", 
+    "contact_management",
+    "memory_search",
+    "real_time_logging"
+  ]
+}

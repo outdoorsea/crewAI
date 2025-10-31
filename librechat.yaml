@@ -1,0 +1,115 @@
+# LibreChat Configuration for Myndy CrewAI MCP Server
+#
+# This configuration enables LibreChat to use the Myndy CrewAI MCP server
+# for accessing 85+ AI tools, memory resources, and agent workflows.
+#
+# File: librechat.yaml
+
+version: 1.1.0
+
+# MCP Server Configuration
+mcpServers:
+  myndy_crewai:
+    # Server command - uses the startup script
+    command: python3
+    args:
+      - "/Users/jeremy/myndy-core/myndy-crewai/start_mcp_server.py"
+
+    # Environment variables for the MCP server
+    env:
+      MYNDY_API_URL: "http://localhost:8000"
+      MCP_LOG_LEVEL: "INFO"
+      MCP_DEBUG: "false"
+      MCP_VERBOSE: "false"
+
+    # Server instructions (sent to the LLM as context)
+    serverInstructions: true
+
+    # Server metadata
+    description: "Myndy CrewAI MCP Server - Personal AI assistant with 85+ specialized tools for memory management, calendar, health tracking, finance, research, and more. Includes 5 specialized agents: Personal Assistant, Memory Librarian, Research Specialist, Health Analyst, and Finance Tracker."
+
+# Custom Endpoints (Optional - for direct HTTP access)
+endpoints:
+  custom:
+    - name: "Myndy CrewAI Direct"
+      apiKey: "user_provided"
+      baseURL: "http://localhost:9092"
+      models:
+        default:
+          - "myndy-assistant"
+          - "myndy-memory"
+          - "myndy-research"
+          - "myndy-health"
+          - "myndy-finance"
+
+      # Model settings
+      titleConvo: true
+      summarize: false
+      modelDisplayLabel: "Myndy CrewAI"
+
+      # MCP integration
+      mcpServers:
+        - myndy_crewai
+
+# Interface Configuration
+interface:
+  # Enable MCP tools in the interface
+  tools:
+    mcp: true
+
+  # Privacy settings
+  privacyPolicy:
+    externalUrl: ""
+    openNewTab: false
+
+  termsOfService:
+    externalUrl: ""
+    openNewTab: false
+
+# File handling
+fileStrategy: "local"
+
+# Cache settings
+cache:
+  type: "redis"
+  options:
+    host: "localhost"
+    port: 6379
+
+# Rate limiting (optional)
+rateLimits:
+  fileUploads:
+    ipMax: 100
+    ipWindowInMinutes: 60
+    userMax: 50
+    userWindowInMinutes: 60
+
+# Model specifications (optional)
+modelSpecs:
+  enforce: false
+  prioritize: true
+  list:
+    - name: "myndy-assistant"
+      label: "Personal Assistant"
+      description: "Calendar, email, weather, time management"
+      preset: "myndy-crewai"
+
+    - name: "myndy-memory"
+      label: "Memory Librarian"
+      description: "Entity management, memory search, knowledge organization"
+      preset: "myndy-crewai"
+
+    - name: "myndy-research"
+      label: "Research Specialist"
+      description: "Information gathering, document analysis, verification"
+      preset: "myndy-crewai"
+
+    - name: "myndy-health"
+      label: "Health Analyst"
+      description: "Health data analysis, wellness insights, activity tracking"
+      preset: "myndy-crewai"
+
+    - name: "myndy-finance"
+      label: "Finance Tracker"
+      description: "Expense tracking, financial analysis, budget management"
+      preset: "myndy-crewai"
