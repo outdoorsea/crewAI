@@ -1,29 +1,71 @@
-.DS_Store
-.pytest_cache
+
 __pycache__
-dist/
-lib/
-.env
-assets/*
-.idea
-test/
-docs_crew/
-chroma.sqlite3
-old_en.json
-db/
-test.py
-rc-tests/*
-*.pkl
-temp/*
-.vscode/*
-crew_tasks_output.json
+__pycache__/
+.claude/settings.local.json
 .codesight
+.DS_Store
+.env
+.env.local
+.env.production
+.idea
+.myndy_tokens.json
 .mypy_cache
+.pytest_cache
+.Python
 .ruff_cache
 .venv
+.vscode/*
+*_backup.*
+*.backup
+*.db
+*.egg-info/
+*.json.bak
+*.key
+*.log
+*.pem
+*.pkl
+*.py[cod]
+*.so
+*.sqlite
+*.sqlite3
+*$py.class
+# === Added by cleanup script ===
+# API Keys and secrets
+# Backups
+# Credentials and tokens
+# Data directories
+# Databases
+# Logs
+# Node
+# OS
+# Python
+# Repomix output (contains full codebase)
 agentops.log
-test_flow.html
-crewairules.mdc
-plan.md
-conceptual_plan.md
+assets/*
+backups/
 build_image
+build/
+chroma.sqlite3
+conceptual_plan.md
+config/credentials/*.json
+crew_tasks_output.json
+crewairules.mdc
+data/
+database/
+db/
+dist/
+docs_crew/
+lib/
+logs/
+node_modules/
+npm-debug.log*
+old_en.json
+plan.md
+rc-tests/*
+repomix-output.xml
+temp/*
+test_flow.html
+test.py
+test/
+Thumbs.db
+token_*.json
